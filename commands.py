@@ -3,6 +3,7 @@ import logging
 import socket
 
 class Socket():
+    """Establishes a socket connection."""
     def __init__(self, address, port):
         self.address = address
         self.port = port
@@ -44,6 +45,8 @@ class Socket():
 class Command():
     """Abstract Base Class for Inbound and Outbound Queue Commands."""
     __metaclass__  = abc.ABCMeta
+    def __init__(self, client, *args, **kwargs):
+        self.client = client
 
     @abc.abstractmethod
     def run(self):
@@ -54,9 +57,7 @@ class Command():
 
 
 class BootstrapRegister(Command):
-    def __init__(self, client, *args, **kwargs):
-        self.client = client
-
+    """Register with the Bootstrap Node."""
     def run(self):
         logging.info('Registering with Bootstrap Node %s:%s' %
             (self.client.bootstrap_server, self.client.bootstrap_port))
@@ -68,9 +69,7 @@ class BootstrapRegister(Command):
 
 
 class BootstrapRequestPeerList(Command):
-    def __init__(self, client, *args, **kwargs):
-        self.client = client
-
+    """Request an updated Peer List from the Bootstrap Node."""
     def run(self):
         logging.info('Requesting Peer List from Bootstrap Node %s:%s' %
             (self.client.bootstrap_server, self.client.bootstrap_port))
@@ -87,9 +86,7 @@ class BootstrapRequestPeerList(Command):
 
 
 class BootstrapUnregister(Command):
-    def __init__(self, client, *args, **kwargs):
-        self.client = client
-
+    """Unregister with the Bootstrap Node."""
     def run(self):
         logging.info('Unregistering with Bootstrap Node %s:%s' %
             (self.client.bootstrap_server, self.client.bootstrap_port))
@@ -101,9 +98,7 @@ class BootstrapUnregister(Command):
 
 
 class BootstrapKeepAlive(Command):
-    def __init__(self, client, *args, **kwargs):
-        self.client = client
-
+    """Transmit a KeepAlive message to the Bootstrap Node."""
     def run(self):
         logging.info('Sending KeepAlive to Bootstrap Node %s:%s' %
             (self.client.bootstrap_server, self.client.bootstrap_port))
@@ -118,49 +113,31 @@ class BootstrapKeepAlive(Command):
 
 
 class InboundDownloadRequest(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class InboundDownloadResponse(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class InboundListRequest(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class InboundListResponse(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class InboundSearchRequest(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class InboundSearchResponse(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
@@ -169,48 +146,30 @@ class InboundSearchResponse(Command):
 
 
 class OutboundDownloadRequest(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class OutboundDownloadResponse(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class OutboundListRequest(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class OutboundListResponse(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class OutboundSearchRequest(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass
 
 
 class OutboundSearchResponse(Command):
-    def __init__(self, *args, **kwargs):
-        pass
-
     def run(self):
         pass

@@ -1,6 +1,7 @@
 import logging
 import Queue
 import socket
+import sys
 import threading
 import time
 
@@ -17,13 +18,9 @@ class Inbound(threading.Thread):
     def run(self):
         logging.debug('Launching Inbound thread')
         while True:
-            # item = self.in_queue.get()
-
-            # result = 'You should be doing work.'
-            # self.out_queue.put(result)
-
-            # self.in_queue.task_done()
-            pass
+            item = self.in_queue.get()
+            item.run()
+            self.in_queue.task_done()
 
 
 class Outbound(threading.Thread):
@@ -36,12 +33,9 @@ class Outbound(threading.Thread):
     def run(self):
         logging.debug('Launching Outbound thread')
         while True:
-            # item = self.out_queue.get()
-
-            # result = 'This is your awesome output.'
-
-            # self.out_queue.task_done()
-            pass
+            item = self.out_queue.get()
+            item.run()
+            self.out_queue.task_done()
 
 
 class Client():
@@ -64,13 +58,11 @@ class Client():
         # update keepalive timer
         self.prev_keepalive = time.clock()
 
-        cmd = commands.BootstrapRegister(self)
-        cmd.run()
+        self.outbound(commands.BootstrapRegister(self))
 
     def fetch_peers(self):
         """Fetch a list of peers from bootstrap node."""
-        cmd = commands.BootstrapRequestPeerList(self)
-        peer_list_response = cmd.run()
+        self.outbound(commands.BootstrapRequestPeerList(self))
 
     def start(self):
         """Start the P2P client process."""
@@ -98,12 +90,24 @@ class Client():
         # in_queue.join()
         # out_queue.join()
 
+    def outbound(self, command):
+        """Add a command to the outbound queue."""
+        self.out_queue.put(command)
+
+    def inbound(self, command):
+        """Add a command to the inbound queue."""
+        self.in_queue.put(command)
+
     def quit(self):
         """Stop the P2P client process."""
-        logging.info('Exiting client...')
+        # Unregister with Bootstrap Node
+        self.outbound(commands.BootstrapUnregister(self))
 
-        cmd = commands.BootstrapUnregister(self)
-        cmd.run()
+        # Wait to finish processing all commands in outbound queue
+        self.out_queue.join()
+
+        logging.info('Exiting client.')
+        sys.exit()
 
 
 if __name__ == '__main__':
