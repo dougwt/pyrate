@@ -113,8 +113,19 @@ class BootstrapKeepAlive(Command):
 
 
 class InboundDownloadRequest(Command):
+    """Inbound Download Request."""
+    def __init__(self, client, server, port, *args, **kwargs):
+        self.client = client
+        self.server = server
+        self.port = port
+
     def run(self):
-        pass
+        logging.info('Received Download Request from %s:%s' %
+            (self.server, self.port))
+
+        bootstrap = Socket(self.server, self.port)
+
+        bootstrap.send('')
 
 
 class InboundDownloadResponse(Command):
@@ -146,30 +157,120 @@ class InboundSearchResponse(Command):
 
 
 class OutboundDownloadRequest(Command):
+    """Outbound Download Request."""
+    def __init__(self, client, server, port, name, *args, **kwargs):
+        self.client = client
+        self.server = server
+        self.port = port
+        self.name = name
+
     def run(self):
-        pass
+        logging.info('Sending Download Request for '%s' to %s:%s' %
+            (self.name, self.server, self.port))
+
+        bootstrap = Socket(self.server, self.port)
+
+        # Download Message
+        bootstrap.send('4:%s' % self.name)
 
 
 class OutboundDownloadResponse(Command):
+    """Outbound Download Response."""
+    def __init__(self, client, server, port, name, *args, **kwargs):
+        self.client = client
+        self.server = server
+        self.port = port
+        self.name = name
+
     def run(self):
-        pass
+        logging.info('Sending '%s' to %s:%s' %
+            (self.name, self.server, self.port))
+
+        bootstrap = Socket(self.server, self.port)
+
+        # TODO: Send actual file contents
+
+        # Download Response Message
+        bootstrap.send(self.name)
 
 
 class OutboundListRequest(Command):
+    """Outbound Download Request."""
+    def __init__(self, client, server, port, name, *args, **kwargs):
+        self.client = client
+        self.server = server
+        self.port = port
+        self.name = name
+
     def run(self):
-        pass
+        logging.info('Sending File List Request to %s:%s' %
+            (self.name, self.server, self.port))
+
+        bootstrap = Socket(self.server, self.port)
+
+        # List Files Message
+        bootstrap.send('5:')
 
 
 class OutboundListResponse(Command):
+    """Outbound List Files Response."""
+    def __init__(self, client, server, port, name, *args, **kwargs):
+        self.client = client
+        self.server = server
+        self.port = port
+        self.name = name
+
     def run(self):
-        pass
+        logging.info('Sending File List Response to %s:%s' %
+            (self.name, self.server, self.port))
+
+        bootstrap = Socket(self.server, self.port)
+
+        # TODO: Send actual file list
+        msg = 'Filename1\nFilename2\n'
+
+        # List Files Response Message
+        bootstrap.send(msg)
 
 
 class OutboundSearchRequest(Command):
+    """Outbound Search Request."""
+    def __init__(self, client, server, port, id, filename, requesting_ip, requesting_port, ttl, *args, **kwargs):
+        self.client = client
+        self.server = server
+        self.port = port
+        self.id = id
+        self.filename = filename
+        self.requesting_ip = requesting_ip
+        self.requesting_port = requesting_port
+        self.ttl = ttl
+
     def run(self):
-        pass
+        logging.info('Sending Search Request for '%s' to %s:%s' %
+            (self.filename, self.server, self.port))
+
+        bootstrap = Socket(self.server, self.port)
+
+        # Search Message
+        bootstrap.send('6:%s:%s:%s' % (self.id, self.filename, self.requesting_ip, self.requesting_port, self.ttl))
 
 
 class OutboundSearchResponse(Command):
+    """Outbound Search Response."""
+    def __init__(self, client, server, port, id, responding_ip, responding_port, filename, *args, **kwargs):
+        self.client = client
+        self.server = server
+        self.port = port
+        self.id = id
+        self.responding_ip = responding_ip
+        self.responding_port = responding_port
+        self.filename = filename
+
     def run(self):
-        pass
+        logging.info('Sending Search Response for '%s' to %s:%s' %
+            (self.filename, self.server, self.port))
+
+        bootstrap = Socket(self.server, self.port)
+
+        # Search Response Message
+        bootstrap.send('7:%s:%s:%s' % (self.id, self.responding_port, self.name))
