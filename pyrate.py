@@ -1,6 +1,9 @@
-import threading
-import Queue
 import logging
+import Queue
+import socket
+import threading
+import time
+
 import commands
 
 
@@ -42,27 +45,36 @@ class Outbound(threading.Thread):
 
 
 class Client():
-    def __init__(self, bootstrap_server, port):
+    def __init__(self, bootstrap_server, bootstrap_port, listen_port):
         self.in_queue = Queue.Queue()
         self.out_queue = Queue.Queue()
         self.peers = []
         self.bootstrap_server = bootstrap_server
-        self.port = port
-        # self.keepalive_timer
+        self.bootstrap_port = bootstrap_port
+        self.listen_port = listen_port
+        self.prev_keepalive = None
 
+        # configure logging module
         logging.basicConfig(filename='pyrate.log',level=logging.DEBUG)
+        logging.debug('Initializing client...')
 
     def register(self):
         """Register our P2P client with bootstrap node."""
-        pass
+
+        # update keepalive timer
+        self.prev_keepalive = time.clock()
+
+        cmd = commands.BootstrapRegister(self)
+        cmd.run()
 
     def fetch_peers(self):
         """Fetch a list of peers from bootstrap node."""
-        pass
+        cmd = commands.BootstrapRequestPeerList(self)
+        peer_list_response = cmd.run()
 
     def start(self):
         """Start the P2P client process."""
-        logging.info('Starting client')
+        logging.info('Starting client...')
 
         # register with bootstrap node
         self.register()
@@ -88,14 +100,17 @@ class Client():
 
     def quit(self):
         """Stop the P2P client process."""
-        logging.info('Exiting client')
-        pass
+        logging.info('Exiting client...')
+
+        cmd = commands.BootstrapUnregister(self)
+        cmd.run()
 
 
 if __name__ == '__main__':
     bootstrap_server = 'localhost'
-    port = 21168
+    bootstrap_port = 21168
+    listen_port = 63339
 
-    pyrate = Client(bootstrap_server, port)
+    pyrate = Client(bootstrap_server, bootstrap_port, listen_port)
     pyrate.start()
     pyrate.quit()
