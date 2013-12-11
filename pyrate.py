@@ -10,7 +10,7 @@ import commands
 
 
 class Listen(threading.Thread):
-    """One liner description."""
+    """Creates a server socket on listen_port for incoming connections."""
     def __init__(self, client, in_queue, out_queue, listen_port):
         threading.Thread.__init__(self)
         self.client = client
@@ -167,9 +167,6 @@ class Client():
         # configure logging module
         logging.basicConfig(filename='pyrate.log',level=logging.DEBUG)
         logging.debug('Initializing client...')
-
-    def __del__(self):
-        logging.info('Quitting client.')
 
     def register(self):
         """Register our P2P client with bootstrap node."""
