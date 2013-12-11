@@ -82,7 +82,17 @@ class BootstrapRequestPeerList(Command):
         peer_list_response = bootstrap.recv()
         logging.info('Received Peer List Response: %s' % peer_list_response)
 
-        return peer_list_response
+        peerlist = []
+        for item in peer_list_response.split('\n')[0:-1]:
+            node = item.split(',')
+            peerlist.append((node[0], node[1]))
+
+        # update peer list with any new peers
+        for peer in peerlist:
+            if peer not in self.client.peers:
+                self.client.peers.append(peer)
+
+        # return peer_list_response
 
 
 class BootstrapUnregister(Command):
@@ -235,6 +245,24 @@ class InboundSearchResponse(Command):
             (self.server, self.port, self.filelist))
 
         # TODO: Display Search Results
+
+
+# class InboundPeerListResponse(Command):
+#     """Inbound Peer List Response from Bootstrap Node."""
+#     def __init__(self, client, server, port, peerlist, *args, **kwargs):
+#         self.client = client
+#         self.server = server
+#         self.port = port
+#         self.peerlist = peerlist
+
+#     def run(self):
+#         logging.info('Received Peer List Response from Bootstrap Node %s:%s : %s' %
+#             (self.server, self.port, self.peerlist)
+
+#         # update peer list with any new peers
+#         for peer in peerlist:
+#             if peer not in self.client.peers:
+#                 self.client.peers.add(peer)
 
 
 # Outbound Commands

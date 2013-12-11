@@ -9,7 +9,90 @@ import time
 import commands
 
 
-class Inbound(threading.Thread):
+class Listen(threading.Thread):
+    """One liner description."""
+    def __init__(self, client, in_queue, out_queue, listen_port):
+        threading.Thread.__init__(self)
+        self.client = client
+        self.in_queue = in_queue
+        self.out_queue = out_queue
+        self.listen_port = listen_port
+
+    def run(self):
+        logging.debug('Launching Incoming thread')
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('', self.listen_port))
+        s.listen(5)
+        while True:
+            # accept a new client connection
+            (clientsocket, address) = s.accept()
+            logging.debug('Client connected:' + str(address))
+
+            # set timeout so the socket closes when no new data is sent
+            clientsocket.settimeout(0.4)
+
+            # continue reading from socket until all data has been received
+            message = ""
+            loop_flag = True
+            while loop_flag:
+                m = clientsocket.recv(4096)
+                if len(m) <= 0:
+                    loop_flag = False
+                message += m
+                logging.debug('Read: %s' % m)
+            clientsocket.close()
+
+            # process complete message
+            logging.debug('Complete message: %s' % message)
+            self.process(message, address)
+
+
+    def process(self, message, address):
+        """Determines which type of message was received and adds it to the queue."""
+        # # Register Msg Format -> 0:ListeningPort
+        # if message.find('0:') == 0:
+        #     # This is not a Bootstrap node, so do nothing
+        #     pass
+
+        # # Request Peer List Msg Format -> 1:MaxNumberOfPeersRequested
+        # else if message.find('1:') == 0:
+        #     # This is not a Bootstrap node, so do nothing
+        #     pass
+
+        # # Unregister Msg Format -> 2:ListeningPort
+        # else if message.find('2:') == 0:
+        #     # This is not a Bootstrap node, so do nothing
+        #     pass
+
+        # # Keepalive Msg Format -> 3:ListeningPort
+        # else if message.find('3:') == 0:
+        #     # This is not a Bootstrap node, so do nothing
+        #     pass
+
+        # # Download Msg Format -> 4:Filename
+        # else if message.find('4:') == 0:
+        #     code, filename = message.split(':')
+        #     # command = InboundDownloadRequest(self.client, server, port, filename)
+
+        # # List Files Msg Format -> 5:
+        # else if message.find('5:') == 0:
+
+        # # Search Msg Format -> 6:ID:File String:RequestingIP:RequestingPort:TTL
+        # else if message.find('6:') == 0:
+
+        # # Search Response Msg Format -> 7:ID:RespondingIP:RespondingPort:Filename
+        # else if message.find('7:') == 0:
+
+        # # Response Peer List Msg Format -> IPAddress1,PortNumber1\nIPAddress2,PortNumber2\n (etc.)
+        # else if message.find('1:') == 0:
+
+        # # Download Response Msg Format -> FILE
+
+        # # List Files Response Msg Format ->Filename1\nFilename2\n (etc.)
+        pass
+
+
+class InboundQueue(threading.Thread):
     """Process inbound queue commands in a separate thread."""
     def __init__(self, in_queue, out_queue):
         threading.Thread.__init__(self)
@@ -17,14 +100,14 @@ class Inbound(threading.Thread):
         self.out_queue = out_queue
 
     def run(self):
-        logging.debug('Launching Inbound thread')
+        logging.debug('Launching InboundQueue thread')
         while True:
             item = self.in_queue.get()
             item.run()
             self.in_queue.task_done()
 
 
-class Outbound(threading.Thread):
+class OutboundQueue(threading.Thread):
     """Process outbound queue commands in a separate thread."""
     def __init__(self, in_queue, out_queue):
         threading.Thread.__init__(self)
@@ -32,7 +115,7 @@ class Outbound(threading.Thread):
         self.out_queue = out_queue
 
     def run(self):
-        logging.debug('Launching Outbound thread')
+        logging.debug('Launching OutboundQueue thread')
         while True:
             item = self.out_queue.get()
             item.run()
@@ -85,6 +168,9 @@ class Client():
         logging.basicConfig(filename='pyrate.log',level=logging.DEBUG)
         logging.debug('Initializing client...')
 
+    def __del__(self):
+        logging.info('Quitting client.')
+
     def register(self):
         """Register our P2P client with bootstrap node."""
         self.outbound(commands.BootstrapRegister(self))
@@ -111,13 +197,18 @@ class Client():
         # request peer list
         self.fetch_peers()
 
+        # launch Listen thread
+        t = Listen(self, self.in_queue, self.out_queue, self.listen_port)
+        t.daemon = True
+        t.start()
+
         # launch Inbound thread
-        t = Inbound(self.in_queue, self.out_queue)
+        t = InboundQueue(self.in_queue, self.out_queue)
         t.daemon = True
         t.start()
 
         # launch Outbound thread
-        t = Outbound(self.in_queue, self.out_queue)
+        t = OutboundQueue(self.in_queue, self.out_queue)
         t.daemon = True
         t.start()
 
