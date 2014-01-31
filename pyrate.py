@@ -5,6 +5,7 @@ import socket
 import sys
 import threading
 import time
+import random
 
 import commands
 
@@ -35,11 +36,15 @@ class Listen(threading.Thread):
             message = ""
             loop_flag = True
             while loop_flag:
-                m = clientsocket.recv(4096)
-                if len(m) <= 0:
-                    loop_flag = False
-                message += m
-                logging.debug('Read: %s' % m)
+                try:
+                    m = clientsocket.recv(4096)
+                    if len(m) <= 0:
+                        loop_flag = False
+                    message += m
+                    logging.debug('Read: %s' % m)
+                except socket.timeout:
+                    # logging.debug('Socket timed out.')
+                    pass
             clientsocket.close()
 
             # process complete message
@@ -49,47 +54,60 @@ class Listen(threading.Thread):
 
     def process(self, message, address):
         """Determines which type of message was received and adds it to the queue."""
-        # # Register Msg Format -> 0:ListeningPort
-        # if message.find('0:') == 0:
-        #     # This is not a Bootstrap node, so do nothing
-        #     pass
+        server, port = address
+        # Register Msg Format -> 0:ListeningPort
+        if message.find('0:') == 0:
+            # This is not a Bootstrap node, so do nothing
+            logging.info('Detected incoming BootstrapRegister message. Discarded.')
 
-        # # Request Peer List Msg Format -> 1:MaxNumberOfPeersRequested
-        # else if message.find('1:') == 0:
-        #     # This is not a Bootstrap node, so do nothing
-        #     pass
+        # Request Peer List Msg Format -> 1:MaxNumberOfPeersRequested
+        elif message.find('1:') == 0:
+            # This is not a Bootstrap node, so do nothing
+            logging.info('Detected incoming BootstrapRequestPeerList message. Discarded.')
 
-        # # Unregister Msg Format -> 2:ListeningPort
-        # else if message.find('2:') == 0:
-        #     # This is not a Bootstrap node, so do nothing
-        #     pass
+        # Unregister Msg Format -> 2:ListeningPort
+        elif message.find('2:') == 0:
+            # This is not a Bootstrap node, so do nothing
+            logging.info('Detected incoming BootstrapRegister message. Discarded.')
 
-        # # Keepalive Msg Format -> 3:ListeningPort
-        # else if message.find('3:') == 0:
-        #     # This is not a Bootstrap node, so do nothing
-        #     pass
+        # Keepalive Msg Format -> 3:ListeningPort
+        elif message.find('3:') == 0:
+            # This is not a Bootstrap node, so do nothing
+            logging.info('Detected incoming BootstrapRegister message. Discarded.')
 
-        # # Download Msg Format -> 4:Filename
-        # else if message.find('4:') == 0:
-        #     code, filename = message.split(':')
-        #     # command = InboundDownloadRequest(self.client, server, port, filename)
+        # Download Msg Format -> 4:Filename
+        elif message.find('4:') == 0:
+            code, filename = message.split(':')
+            logging.info('Detected incoming DownloadRequest message from %s:%s %s' % (server, port, filename))
+            command = commands.InboundDownloadRequest(self.client, server, port, filename)
+            self.client.inbound(command)
 
-        # # List Files Msg Format -> 5:
-        # else if message.find('5:') == 0:
+        # List Files Msg Format -> 5:
+        elif message.find('5:') == 0:
+            logging.info('Detected incoming ListFilesRequest message from %s:%s' % server, port)
+            command = commands.InboundListRequest(self.client, server, port)
+            self.client.inbound(command)
 
-        # # Search Msg Format -> 6:ID:File String:RequestingIP:RequestingPort:TTL
-        # else if message.find('6:') == 0:
+        # Search Msg Format -> 6:ID:File String:RequestingIP:RequestingPort:TTL
+        elif message.find('6:') == 0:
+            code, id, filename, requesting_ip, requesting_port, ttl = message.split(':')
+            logging.info('Detected incoming SearchRequest message from %s:%s' % (server, port))
+            command = commands.InboundSearchRequest(self.client, server, port, requesting_ip, requesting_port, filename, ttl)
+            self.client.inbound(command)
 
-        # # Search Response Msg Format -> 7:ID:RespondingIP:RespondingPort:Filename
-        # else if message.find('7:') == 0:
+        # Search Response Msg Format -> 7:ID:RespondingIP:RespondingPort:Filename
+        elif message.find('7:') == 0:
+            code, id, respdonding_ip, responding_port, filename = message.split(':')
+            logging.info('Detected incoming SearchResponse message from %s:%s %s' % (server, port, filename))
+            command = commands.InboundSearchResponse(self.client, server, port, filename, respdonding_ip, responding_port)
+            self.client.inbound(command)
 
-        # # Response Peer List Msg Format -> IPAddress1,PortNumber1\nIPAddress2,PortNumber2\n (etc.)
-        # else if message.find('1:') == 0:
-
-        # # Download Response Msg Format -> FILE
-
-        # # List Files Response Msg Format ->Filename1\nFilename2\n (etc.)
-        pass
+        # List Files Response Msg Format ->Filename1\nFilename2\n (etc.)
+        else:
+            filelist = filename.split('\n')
+            logging.info('Detected incoming ListResponse message from %s:%s %s' % (server, port, filelist))
+            command = commands.InboundListResponse(self.client, server, port, filelist)
+            self.client.inbound(command)
 
 
 class InboundQueue(threading.Thread):
@@ -154,7 +172,7 @@ class FileMonitor(threading.Thread):
 
 
 class Client():
-    def __init__(self, bootstrap_server, bootstrap_port, listen_port, keepalive, local_directory):
+    def __init__(self, bootstrap_server, bootstrap_port, listen_port, keepalive, local_directory, log_file):
         self.in_queue = Queue.Queue()
         self.out_queue = Queue.Queue()
         self.peers = []
@@ -163,9 +181,11 @@ class Client():
         self.listen_port = listen_port
         self.keepalive = keepalive
         self.local_directory = local_directory
+        self.log_file = log_file
+        self.seen = []
 
         # configure logging module
-        logging.basicConfig(filename='pyrate.log',level=logging.DEBUG)
+        logging.basicConfig(filename=self.log_file,level=logging.DEBUG)
         logging.debug('Initializing client...')
 
     def register(self):
@@ -180,6 +200,75 @@ class Client():
         """Refreshes current filelist with local directory contents."""
         logging.debug('Updating filelist')
         self.filelist = os.listdir(self.local_directory)
+
+    def input_loop(self):
+        print 'Available commands include GET, LIST, SEARCH, PEERS, GETPEERS, and QUIT'
+        while True:
+            # TODO: update display buffer
+
+            # prompt user for input
+            input = raw_input('Enter a command: ').split()
+
+            if input[0].upper() == 'QUIT':
+                logging.debug('User entered QUIT command.')
+                print 'Exiting client.'
+                return
+
+            elif input[0].upper() == 'GET':
+                if len(input) == 4:
+                    server, port, filename = input[1:]
+                    port = int(port)
+
+                    logging.debug('User entered GET command. [GET %s %s %s' % (server, port, filename))
+                    command = commands.OutboundDownloadRequest(self, server, port, filename)
+                    self.outbound(command)
+                else:
+                    print 'Invalid GET parameters. Try GET <server> <port> <filename>'
+
+            elif input[0].upper() == 'LIST':
+                if len(input) == 3:
+                    server, port = input[1:]
+                    port = int(port)
+                    logging.debug('User entered LIST command. [LIST %s %s]' % (server, port))
+                    command = commands.OutboundListRequest(self, server, port)
+                    self.outbound(command)
+                else:
+                    print 'Invalid LIST parameters. Try LIST <server> <port>'
+
+            elif input[0].upper() == 'SEARCH':
+                if len(input) == 2:
+                    filename = input[1]
+                    logging.debug('User entered SEARCH command. [SEARCH %s]' % (filename))
+                    id = filename + str(random.randint(100, 999))
+                    requesting_ip = socket.gethostbyname(socket.gethostname())
+                    requesting_port = listen_port
+                    ttl = 10
+
+                    # add id to list of seen searches, so we don't forward our own requests
+                    self.seen.append(id)
+
+                    # generate a Request for each peer in peerlist
+                    for peer in self.peers:
+                        server, port = peer
+                        port = int(port)
+                        print 'Building Command for %s:%s' % (server, port)
+                        command = commands.OutboundSearchRequest(self, server, port, id, filename, requesting_ip, requesting_port, ttl)
+                        self.outbound(command)
+                else:
+                    print 'Invalid SEARCH parameters. Try SEARCH <filename>'
+
+            elif input[0].upper() == 'PEERS':
+                logging.debug('User entered PEERS command.')
+                for peer in self.peers:
+                    print peer
+
+            elif input[0].upper() == 'GETPEERS':
+                logging.debug('User entered GETPEERS command.')
+                self.fetch_peers()
+
+            else:
+                print 'Invalid Command. Try GET, LIST, SEARCH, PEERS, GETPEERS, or QUIT.'
+
 
     def start(self):
         """Start the P2P client process."""
@@ -219,9 +308,7 @@ class Client():
         t.daemon = True
         t.start()
 
-        # update display buffer
-        # prompt user for input
-        time.sleep(60*5)
+        self.input_loop()
 
     def outbound(self, command):
         """Add a command to the outbound queue."""
@@ -249,7 +336,8 @@ if __name__ == '__main__':
     listen_port = 63339
     keepalive_timer = 10
     local_directory = '/Users/dougwt/Code/School/css432/pyrate/files'
+    log_file = 'pyrate.log'
 
-    pyrate = Client(bootstrap_server, bootstrap_port, listen_port, keepalive_timer, local_directory)
-    pyrate.start()
-    pyrate.quit()
+    p = Client(bootstrap_server, bootstrap_port, listen_port, keepalive_timer, local_directory, log_file)
+    p.start()
+    p.quit()

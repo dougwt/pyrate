@@ -21,7 +21,7 @@ class Socket():
             print 'Hostname could not be resolved. Exiting.'
             sys.exit()
 
-        # now connect to the Bootstrap node on the given portA
+        # now connect to the Bootstrap node on the given port
         self.s.connect((remote_ip, port))
 
     def __del__(self):
@@ -39,7 +39,38 @@ class Socket():
             sys.exit()
 
     def recv(self):
-        return self.s.recv(self.port)
+        message = ""
+        loop_flag = True
+        while loop_flag:
+            m = self.s.recv(4096)
+            if len(m) <= 0:
+                loop_flag = False
+            message += m
+            logging.debug('Read: %s' % m)
+        return message
+
+    def get_port(self):
+        return self.s.getsockname()
+
+
+class ServerSocket(Socket):
+    def __init__(self, port):
+        self.port = port
+
+        # logging.debug('Establishing socket connection to %s:%s...' % (address, port))
+        try:
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        except socket.error, msg:
+            print 'Failed to create socket. Error code: %s, Error message: %s' % (str(msg[0]), msg[1])
+            sys.exit()
+
+        # now connect to the Bootstrap node on the given port
+        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.s.bind(('', port))
+        self.s.listen(0)
+        (self.clientsocket, self.address) = self.s.accept()
+        self.s.close()
+        self.s = self.clientsocket
 
 
 class Command():
@@ -134,31 +165,17 @@ class InboundDownloadRequest(Command):
         logging.info('Received Download Request from %s:%s' %
             (self.server, self.port))
 
+        logging.info('Preparing to send \'%s\' to %s:%s...' %
+            (self. filename, self.server, self.port))
         bootstrap = Socket(self.server, self.port)
 
-        # add Download Response to outbound queue
-        command = OutboundDownloadResponse(self.client, self.server, self.port, self.filename)
-        self.client.out_queue.put(command)
+        # send actual file contents
+        with open(self.client.local_directory + '/' + self.filename, 'r') as f:
+            # Download Response Message
+            bootstrap.send(f.read())
 
-
-class InboundDownloadResponse(Command):
-    """Inbound Download Response."""
-    def __init__(self, client, server, port, data, *args, **kwargs):
-        self.client = client
-        self.server = server
-        self.port = port
-        self.data = data
-
-    def run(self):
-        logging.info('Received Download Response from %s:%s' %
-            (self.server, self.port))
-
-        # save file to local directory
-        filename = 'newfile.txt'
-        with open(self.client.local_directory + '/' + filename) as f:
-            f.write(self.data)
-
-        # TODO: Use the actual filename!
+        logging.info('Finished sending \'%s\' to %s:%s...' %
+            (self. filename, self.server, self.port))
 
 
 class InboundListRequest(Command):
@@ -194,13 +211,13 @@ class InboundListResponse(Command):
 
 class InboundSearchRequest(Command):
     """Inbound Search Request."""
-    def __init__(self, client, server, port, requesting_ip, requesting_port, id, filename, ttl, *args, **kwargs):
+    def __init__(self, client, server, port, requesting_ip, requesting_port, ident, filename, ttl, *args, **kwargs):
         self.client = client
         self.server = server
         self.port = port
         self.requesting_ip = requesting_ip
         self.requesting_port = requesting_port
-        self.id = id
+        self.id = ident
         self.filename = filename
         self.ttl = ttl
 
@@ -208,37 +225,48 @@ class InboundSearchRequest(Command):
         logging.info('Received Search Request for \'%s\' from %s:%s : %s' %
             (self.filename, self.server, self.port, self.filelist))
 
+        # if we've already seen this request, do nothing
+        if self.id in self.client.seen:
+            return
+        # otherwise, add it to our list of seen requests for next time
+        else:
+            self.client.seen.add(self.id)
+
+        # if we have this file, let the original client know
         if self.filename in self.client.filelist:
             # add Search Response to outbound queue
             command = OutboundSearchResponse(self.client,
                                              self.server,
                                              self.port,
                                              self.id,
-                                             self.responding_ip,
-                                             self.responding_port,
+                                             self.requesting_ip,
+                                             self.requesting_port,
                                              self.filename)
             self.client.out_queue.put(command)
-        else:
-            # TODO: Have I already seen this request?
 
+        # if we don't have the file and TTL > 0, forward the Search Request
+        elif self.ttl > 0:
             # add Search Request to outbound queue
             command = OutboundSearchRequest(self.client,
                                              self.server,
                                              self.port,
                                              self.id,
-                                             self.responding_ip,
-                                             self.responding_port,
-                                             self.filename)
+                                             self.filename,
+                                             self.requesting_ip,
+                                             self.requesting_port,
+                                             self.ttl - 1)
             self.client.out_queue.put(command)
 
 
 class InboundSearchResponse(Command):
     """Inbound Search Response."""
-    def __init__(self, client, server, port, filename, *args, **kwargs):
+    def __init__(self, client, server, port, filename, responding_ip, responding_port, *args, **kwargs):
         self.client = client
         self.server = server
         self.port = port
         self.filename = filename
+        self.responding_ip
+        self.responding_port
 
     def run(self):
         logging.info('Received File List Response from %s:%s : %s' %
@@ -247,22 +275,22 @@ class InboundSearchResponse(Command):
         # TODO: Display Search Results
 
 
-# class InboundPeerListResponse(Command):
-#     """Inbound Peer List Response from Bootstrap Node."""
-#     def __init__(self, client, server, port, peerlist, *args, **kwargs):
-#         self.client = client
-#         self.server = server
-#         self.port = port
-#         self.peerlist = peerlist
+class InboundPeerListResponse(Command):
+    """Inbound Peer List Response from Bootstrap Node."""
+    def __init__(self, client, server, port, peerlist, *args, **kwargs):
+        self.client = client
+        self.server = server
+        self.port = port
+        self.peerlist = peerlist
 
-#     def run(self):
-#         logging.info('Received Peer List Response from Bootstrap Node %s:%s : %s' %
-#             (self.server, self.port, self.peerlist)
+    def run(self):
+        logging.info('Received Peer List Response from Bootstrap Node %s:%s : %s' %
+            (self.server, self.port, self.peerlist))
 
-#         # update peer list with any new peers
-#         for peer in peerlist:
-#             if peer not in self.client.peers:
-#                 self.client.peers.add(peer)
+        # update peer list with any new peers
+        for peer in self.peerlist:
+            if peer not in self.client.peers:
+                self.client.peers.add(peer)
 
 
 # Outbound Commands
@@ -282,43 +310,36 @@ class OutboundDownloadRequest(Command):
 
         bootstrap = Socket(self.server, self.port)
 
-        # Download Message
+        # Send Download Message
         bootstrap.send('4:%s' % self.filename)
+        unused, temp_port = bootstrap.get_port()
+        bootstrap.close()
 
+        logging.info('Waiting for response from %s:%s [%s]...' %
+            (self.server, self.port, temp_port))
 
-class OutboundDownloadResponse(Command):
-    """Outbound Download Response."""
-    def __init__(self, client, server, port, filename, *args, **kwargs):
-        self.client = client
-        self.server = server
-        self.port = port
-        self.filename = filename
+        # Establish server socket for response connection
+        bootstrap = ServerSocket(temp_port)
+        data = bootstrap.recv()
 
-    def run(self):
-        logging.info('Sending \'%s\' to %s:%s' %
-            (self.filename, self.server, self.port))
+        logging.info('Response received. Saving \'%s\'.' % self.filename)
+        # save file to local directory
+        with open(self.client.local_directory + '/' + self.filename, 'w') as f:
+            f.write(data)
 
-        bootstrap = Socket(self.server, self.port)
-
-        # send actual file contents
-        with open(self.client.local_directory + '/' + self.filename) as f:
-            # Download Response Message
-            bootstrap.send(f.read())
-
-
+        logging.info('Finished saving \'%s\'.' % self.filename)
 
 
 class OutboundListRequest(Command):
     """Outbound Download Request."""
-    def __init__(self, client, server, port, filename, *args, **kwargs):
+    def __init__(self, client, server, port, *args, **kwargs):
         self.client = client
         self.server = server
         self.port = port
-        self.filename = filename
 
     def run(self):
         logging.info('Sending File List Request to %s:%s' %
-            (self.filename, self.server, self.port))
+            (self.server, self.port))
 
         bootstrap = Socket(self.server, self.port)
 
@@ -367,8 +388,12 @@ class OutboundSearchRequest(Command):
 
         bootstrap = Socket(self.server, self.port)
 
+        # For some reason, this line causes an error, so use alternate string below
+        # message = '6:%s:%s:%s' % (self.id, self.filename, self.requesting_ip, self.requesting_port, self.ttl)
+        message = '6:' + self.id + ':' + str(self.filename) + ':' + str(self.requesting_ip) + ':' + str(self.requesting_port) + ':' + str(self.ttl)
+
         # Search Message
-        bootstrap.send('6:%s:%s:%s' % (self.id, self.filename, self.requesting_ip, self.requesting_port, self.ttl))
+        bootstrap.send(message)
 
 
 class OutboundSearchResponse(Command):
