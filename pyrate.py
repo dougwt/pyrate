@@ -10,7 +10,7 @@ import random
 import commands
 
 
-class Listen(threading.Thread):
+class ClientListener(threading.Thread):
     """Creates a server socket on listen_port for incoming connections."""
     def __init__(self, client, in_queue, out_queue, listen_port):
         threading.Thread.__init__(self)
@@ -50,7 +50,6 @@ class Listen(threading.Thread):
             # process complete message
             logging.debug('Complete message: %s' % message)
             self.process(message, address)
-
 
     def process(self, message, address):
         """Determines which type of message was received and adds it to the queue."""
@@ -108,6 +107,50 @@ class Listen(threading.Thread):
             logging.info('Detected incoming ListResponse message from %s:%s %s' % (server, port, filelist))
             command = commands.InboundListResponse(self.client, server, port, filelist)
             self.client.inbound(command)
+
+
+class BootstrapListener(threading.Thread):
+"""Creates a server socket on listen_port for incoming connections."""
+    def __init__(self, bootstrap, queue, listen_port):
+        threading.Thread.__init__(self)
+        self.bootstrap = bootstrap
+        self.queue = queue
+        self.listen_port = listen_port
+
+    def run(self):
+        logging.debug('Launching Bootstrap Listener')
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('', self.listen_port))
+        s.listen(5)
+        while True:
+            # accept a new client connection
+            (clientsocket, address) = s.accept()
+            logging.debug('Client connected:' + str(address))
+
+            # set timeout so the socket closes when no new data is sent
+            clientsocket.settimeout(0.4)
+
+            # continue reading from socket until all data has been received
+            message = ""
+            loop_flag = True
+            while loop_flag:
+                try:
+                    m = clientsocket.recv(4096)
+                    if len(m) <= 0:
+                        loop_flag = False
+                    message += m
+                    logging.debug('Read: %s' % m)
+                except socket.timeout:
+                    # logging.debug('Socket timed out.')
+                    pass
+            clientsocket.close()
+
+            # process complete message
+            logging.debug('Complete message: %s' % message)
+            self.process(message, address)
+
+    def process(self, message, address):
+        pass
 
 
 class InboundQueue(threading.Thread):
@@ -332,6 +375,7 @@ class Client():
 
 class Bootstrap():
     def __init__(self, listen_port, keepalive, log_file):
+        self.queue = Queue.Queue()
         self.listen_port = listen_port
         self.keepalive = keepalive
         self.log_file = log_file
@@ -339,6 +383,14 @@ class Bootstrap():
 
     def start(self):
     """Start the P2P bootstrap process."""
+        # spawn listener process
+
+        while True:
+            # process anything in queue
+            # remove expired peers
+
+    def process(self, message, address):
+    """Command Factory."""
         pass
 
     def quit(self):
