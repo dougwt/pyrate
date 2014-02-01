@@ -330,6 +330,22 @@ class Client():
         sys.exit()
 
 
+class Bootstrap():
+    def __init__(self, listen_port, keepalive, log_file):
+        self.listen_port = listen_port
+        self.keepalive = keepalive
+        self.log_file = log_file
+        self.peers = {}
+
+    def start(self):
+    """Start the P2P bootstrap process."""
+        pass
+
+    def quit(self):
+    """Stop the P2P bootstrap process."""
+        pass
+
+
 if __name__ == '__main__':
     bootstrap_server = 'localhost'
     bootstrap_port = 21168
