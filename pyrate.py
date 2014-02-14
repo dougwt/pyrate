@@ -159,7 +159,6 @@ class Listener(threading.Thread):
         self.client = client
         self.queue = client.queue
         self.listen = client.listen
-        self.factory = commands.CommandFactory()
 
     def run(self):
         self.client.log(Message.DEBUG, 'Launching Listener thread')
@@ -190,7 +189,7 @@ class Listener(threading.Thread):
 
             # process complete message
             self.client.log(Message.DEBUG, 'Complete message: %s' % message)
-            # self.process(message, address)
+            self.process(message, address)
 
 
 class Threadpool():

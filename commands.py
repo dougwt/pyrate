@@ -85,15 +85,9 @@ class Command():
 
 
 class CommandFactory():
-    """Stub class for Command Factory."""
-    def __init__(self):
-        pass
-
-    # ORIGINAL COMMAND PROCESSING CODE FROM 0.1
-    # INSERTED HERE FOR REFERENCE
-    # TODO: Remove process once CommandFactory has been implemented
-    def process(self, message, address):
-        """Determines which type of message was received and adds it to the queue."""
+    """This is the place where Commands are born."""
+    def decode(self, message, address):
+        """Decodes a response into the corresponding Command object."""
         server, port = address
         # Register Msg Format -> 0:ListeningPort
         if message.find('0:') == 0:
@@ -119,35 +113,32 @@ class CommandFactory():
         elif message.find('4:') == 0:
             code, filename = message.split(':')
             logging.info('Detected incoming DownloadRequest message from %s:%s %s' % (server, port, filename))
-            command = commands.InboundDownloadRequest(self.client, server, port, filename)
-            self.client.inbound(command)
+            return commands.InboundDownloadRequest(self.client, server, port, filename)
 
         # List Files Msg Format -> 5:
         elif message.find('5:') == 0:
             logging.info('Detected incoming ListFilesRequest message from %s:%s' % server, port)
-            command = commands.InboundListRequest(self.client, server, port)
-            self.client.inbound(command)
+            return commands.InboundListRequest(self.client, server, port)
 
         # Search Msg Format -> 6:ID:File String:RequestingIP:RequestingPort:TTL
         elif message.find('6:') == 0:
             code, id, filename, requesting_ip, requesting_port, ttl = message.split(':')
             logging.info('Detected incoming SearchRequest message from %s:%s' % (server, port))
-            command = commands.InboundSearchRequest(self.client, server, port, requesting_ip, requesting_port, filename, ttl)
-            self.client.inbound(command)
+            return commands.InboundSearchRequest(self.client, server, port, requesting_ip, requesting_port, filename, ttl)
 
         # Search Response Msg Format -> 7:ID:RespondingIP:RespondingPort:Filename
         elif message.find('7:') == 0:
             code, id, respdonding_ip, responding_port, filename = message.split(':')
             logging.info('Detected incoming SearchResponse message from %s:%s %s' % (server, port, filename))
-            command = commands.InboundSearchResponse(self.client, server, port, filename, respdonding_ip, responding_port)
-            self.client.inbound(command)
+            return commands.InboundSearchResponse(self.client, server, port, filename, respdonding_ip, responding_port)
 
         # List Files Response Msg Format ->Filename1\nFilename2\n (etc.)
         else:
             filelist = filename.split('\n')
             logging.info('Detected incoming ListResponse message from %s:%s %s' % (server, port, filelist))
-            command = commands.InboundListResponse(self.client, server, port, filelist)
-            self.client.inbound(command)
+            return commands.InboundListResponse(self.client, server, port, filelist)
+
+        return None
 
 
 # Bootstrap Commands
