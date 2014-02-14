@@ -201,7 +201,7 @@ class Threadpool():
         self.max = max_workers
 
     def acquire(self):
-        """Returns True if there is room for another available Worker."""
+        """Returns True if an available Worker was found and claimed."""
         if self.workers < self.max:
             self.workers += 1
             return True
