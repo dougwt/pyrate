@@ -173,6 +173,43 @@ class Client():
         logging.info('Exiting client.')
         sys.exit()
 
+class Listener(threading.Thread):
+    """Creates a server socket on listen_port for incoming connections."""
+    def __init__(self, client):
+	threading.Thread.__init__(self)
+	self.client = client
+	self.queue = client.queue
+	self.listen = client.listen
+	self.factory = commands.CommandFactory()
+
+    def run(self):
+	self.log(Message.DEBUG, 'Launching Listener thread'
+	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	s.bind((self.listen.address, self.listen.port))
+	s.listen(5)
+	while True:
+	    # accept a new client connection
+	    (clientsocket, address) = s.accept()
+
+	    # set timeout so the socket closes when no new data is sent
+	    clientsocket.settimeout(0.4)
+
+	    # continue reading from socket until all data has been received
+	    message = ""
+	    loop_flag = True
+	    while loop_flag:
+		try:
+		    m = clientsocket.recv(4096)
+		    if len(m) <= 0:
+			loop_flag = False
+		    message += m
+		except socket.timeout:
+	    clientsocket.close()
+
+	    # process complete message
+	    # self.process(message, address)
+
+
 
 if __name__ == '__main__':
     bootstrap_server = 'localhost'
