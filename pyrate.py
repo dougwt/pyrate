@@ -174,31 +174,6 @@ class Client():
         sys.exit()
 
 
-class Bootstrap():
-    def __init__(self, listen_port, keepalive, log_file):
-        self.queue = Queue.Queue()
-        self.listen_port = listen_port
-        self.keepalive = keepalive
-        self.log_file = log_file
-        self.peers = {}
-
-    def start(self):
-    """Start the P2P bootstrap process."""
-        # spawn listener process
-
-        while True:
-            # process anything in queue
-            # remove expired peers
-
-    def process(self, message, address):
-    """Command Factory."""
-        pass
-
-    def quit(self):
-    """Stop the P2P bootstrap process."""
-        pass
-
-
 if __name__ == '__main__':
     bootstrap_server = 'localhost'
     bootstrap_port = 21168
