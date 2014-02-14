@@ -86,7 +86,8 @@ class Command():
 
 class CommandFactory():
     """This is the place where Commands are born."""
-    def decode(self, message, connection):
+    @staticmethod
+    def decode(client, message, connection):
         """Decodes a response into the corresponding Command object."""
         address, port = connection
 
@@ -116,24 +117,24 @@ class CommandFactory():
         elif prefix == '4:':
             code, filename = message.split(':')
             logging.info('Detected incoming DownloadRequest message from %s:%s %s' % (address, port, filename))
-            return commands.InboundDownloadRequest(self.client, address, port, filename)
+            return InboundDownloadRequest(client, address, port, filename)
 
         # List Files Msg Format -> 5:
         elif prefix == '5:':
-            logging.info('Detected incoming ListFilesRequest message from %s:%s' % address, port)
-            return commands.InboundListRequest(self.client, address, port)
+            logging.info('Detected incoming ListFilesRequest message from %s:%s' % (address, port))
+            return InboundListRequest(client, address, port)
 
         # Search Msg Format -> 6:ID:File String:RequestingIP:RequestingPort:TTL
         elif prefix == '6:':
             code, id, filename, requesting_ip, requesting_port, ttl = message.split(':')
             logging.info('Detected incoming SearchRequest message from %s:%s' % (address, port))
-            return commands.InboundSearchRequest(self.client, address, port, requesting_ip, requesting_port, filename, ttl)
+            return InboundSearchRequest(client, address, port, requesting_ip, requesting_port, filename, ttl)
 
         # Search Response Msg Format -> 7:ID:RespondingIP:RespondingPort:Filename
         elif prefix == '7:':
             code, id, respdonding_ip, responding_port, filename = message.split(':')
             logging.info('Detected incoming SearchResponse message from %s:%s %s' % (address, port, filename))
-            return commands.InboundSearchResponse(self.client, address, port, filename, respdonding_ip, responding_port)
+            return InboundSearchResponse(client, address, port, filename, respdonding_ip, responding_port)
 
 
         # TODO: else case should result in the message being discarded.
@@ -144,7 +145,7 @@ class CommandFactory():
         else:
             filelist = filename.split('\n')
             logging.info('Detected incoming ListResponse message from %s:%s %s' % (address, port, filelist))
-            return commands.InboundListResponse(self.client, address, port, filelist)
+            return InboundListResponse(client, address, port, filelist)
 
         return None
 
@@ -154,12 +155,19 @@ class CommandFactory():
 
 class Decode(Command):
     """Decodes received message into corresponding Command."""
-    def run(self, client, message, connection):
-        address, port = connection
-        command = CommandFactory.decode(message, address)
+    def __init__(self, client, message, connection):
+        self.client = client
+        self.message = message
+        self.connection = connection
+
+    def run(self):
+        command = CommandFactory.decode(self.client, self.message, self.connection)
         logging.debug('Decoding \'%s\' (%s:%s) -> %s' %
-            (message, address, port, command))
-        client.add(command)
+            (self.message, self.connection.address, self.connection.port, command))
+
+        if command:
+            logging.debug('Queueing (%s:%s) %s' % (self.connection.address, self.connection.port, command))
+            self.client.add(command)
 
 # Bootstrap Commands
 
@@ -268,7 +276,7 @@ class InboundListRequest(Command):
 
         # add file list response to outbound queue
         command = OutboundListResponse(self.client, self.server, self.port)
-        self.client.out_queue.put(command)
+        self.client.add(command)
 
 
 class InboundListResponse(Command):
@@ -432,6 +440,7 @@ class OutboundListResponse(Command):
         self.port = port
 
     def run(self):
+        # TODO:  self.filename does not exist. Perhaps I never finished implementing args?
         logging.info('Sending File List Response to %s:%s' %
             (self.filename, self.server, self.port))
 

@@ -189,7 +189,7 @@ class Listener(threading.Thread):
 
             # process complete message
             self.client.log(Message.DEBUG, 'Complete message: %s' % message)
-            self.process(message, address)
+            self.client.add(commands.Decode(self.client, message, address))
 
 
 class Threadpool():
