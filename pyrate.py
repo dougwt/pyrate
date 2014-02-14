@@ -20,7 +20,7 @@ Connection = collections.namedtuple('Connection', ['address', 'port'])
 
 class Client():
     def __init__(self, bootstrap_addr, bootstrap_port, listen_addr, listen_port,
-      keepalive, local_directory, log_file, max_workers):
+      keepalive_seconds, filemonitor_seconds, local_directory, log_file, max_workers):
         self.queue = Queue.Queue()
         self.peers = []
         self.seen_requests = []
@@ -29,12 +29,12 @@ class Client():
         self.bootstrap = Connection(bootstrap_addr, bootstrap_port)
         self.listen = Connection(listen_addr, listen_port)
 
-        self.pool = Threadpool(self.max_workers)
-        self.keepalive = Timer(keepalive)
-        # TODO: If you use magic numbers, you're gonna have a bad time.
-        # 5 minutes * 60 seconds
-        self.file_monitor = Timer(5*60)
+        self.keepalive_seconds = keepalive_seconds
+        self.filemonitor_seconds = filemonitor_seconds
+        self.keepalive = Timer(self.keepalive_seconds)
+        self.file_monitor = Timer(self.filemonitor_seconds)
         self.max_workers = max_workers  # Max # of simultaneous worker threads
+        self.pool = Threadpool(self.max_workers)
 
         self.shared_path = local_directory
         self.log_file = log_file
@@ -69,8 +69,7 @@ class Client():
 
     def fetch_peers(self):
         """Fetch a list of peers from bootstrap node."""
-        msg = 'Queueing Bootstrap Request PeerList command (%s:%s)' %
-          self.bootstrap
+        msg = 'Queueing Bootstrap Request PeerList command (%s:%s)' % self.bootstrap
         self.log(Message.DEBUG, msg)
         self.add(commands.BootstrapRequestPeerList(self))
 
@@ -99,7 +98,7 @@ class Client():
 
         while True:
             # Check Queue for commands
-            if not self.queue.empty() and self.Threadpool.acquire():
+            if not self.queue.empty() and self.pool.acquire():
                 item = self.queue.get()
                 # TODO: Spin off Command in separate Thread
                 item.run()
@@ -211,14 +210,14 @@ class Threadpool():
 
     def release(self):
         """Returns True if a worker was successfully released."""
-        if len(self.workers > 0)
+        if self.workers > 0:
             workers -= 1
             return True
         else:
             return False
 
 class Timer():
-"""A simple timer that expires at a set interval given in seconds."""
+    """A simple timer that expires at a set interval given in seconds."""
     def __init__(self, seconds):
         self.seconds = seconds
         self.start_time = self.get_current_time()
@@ -241,7 +240,8 @@ if __name__ == '__main__':
     bootstrap_port = 21168
     listen_address = 'localhost'
     listen_port = 63339
-    keepalive_timer = 1*60
+    keepalive_seconds = 1*60
+    filemonitor_seconds = 1*60
     local_directory = '/Users/dougwt/Code/School/css432/pyrate/files'
     log_file = 'pyrate.log'
     max_workers = 4
@@ -250,7 +250,8 @@ if __name__ == '__main__':
                bootstrap_port,
                listen_address,
                listen_port,
-               keepalive_timer,
+               keepalive_seconds,
+               filemonitor_seconds,
                local_directory,
                log_file,
                max_workers)
