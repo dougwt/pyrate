@@ -6,117 +6,87 @@ import sys
 import threading
 import time
 import random
+import collections
 
 import commands
 
+def enum(*sequential, **named):
+    enums = dict(zip(sequential, range(len(sequential))), **named)
+    return type('Enum', (), enums)
 
-
-
-
+Message = enum('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
+Connection = collections.namedtuple('Connection', ['address', 'port'])
 
 
 class Client():
-    def __init__(self, bootstrap_server, bootstrap_port, listen_port, keepalive, local_directory, log_file):
-        self.in_queue = Queue.Queue()
-        self.out_queue = Queue.Queue()
+    def __init__(self, bootstrap_addr, bootstrap_port, listen_addr, listen_port, keepalive, local_directory, log_file, max_workers):
+        self.queue = Queue.Queue()
         self.peers = []
-        self.bootstrap_server = bootstrap_server
-        self.bootstrap_port = bootstrap_port
-        self.listen_port = listen_port
-        self.keepalive = keepalive
-        self.local_directory = local_directory
+        self.seen_requests = []
+        self.shared_files = []
+
+        self.bootstrap = Connection(bootstrap_addr, bootstrap_port)
+        self.listen = Connection(listen_addr, listen_port)
+
+        self.pool = Threadpool(self)
+        self.keepalive = Timer(keepalive)
+        self.file_monitor = Timer(5*60)     # TODO: If you use magic numbers, you're gonna have a bad time. 5 minutes * 60 seconds
+        self.max_workers = max_workers  # Max # of simultaneous worker threads
+
+        self.shared_path = local_directory
         self.log_file = log_file
-        self.seen = []
+
+        self.listener = Listener(self)
+        self.listener.daemon = True
+        # self.console = Console(self)      # TODO: Implement Console
+        self.console = None
+        # self.console.daemon = True
 
         # configure logging module
         logging.basicConfig(filename=self.log_file,level=logging.DEBUG)
-        logging.debug('Initializing client...')
+        self.log(Message.DEBUG, 'Initializing client...')
 
     def register(self):
-        """Register our P2P client with bootstrap node."""
-        self.outbound(commands.BootstrapRegister(self))
+        """Register P2P client with bootstrap node."""
+        self.add(commands.BootstrapRegister(self))
+
+    def unregister(self):
+        """Unregisteres P2P client with bootstrap node."""
+        self.add(commands.BootstrapUnregister(self))
+
+    def keepalive(self):
+        """Send KeepAlive message to bootstrap node."""
+        self.add(commands.BootstrapKeepAlive(self.client))
 
     def fetch_peers(self):
         """Fetch a list of peers from bootstrap node."""
-        self.outbound(commands.BootstrapRequestPeerList(self))
+        self.add(commands.BootstrapRequestPeerList(self))
 
     def update_files(self):
         """Refreshes current filelist with local directory contents."""
-        logging.debug('Updating filelist')
-        self.filelist = os.listdir(self.local_directory)
+        self.log(Message.DEBUG, 'Updating filelist')
+        # TODO: Update File List
+        # self.filelist = os.listdir(self.local_directory)
 
-    def input_loop(self):
-        print 'Available commands include GET, LIST, SEARCH, PEERS, GETPEERS, and QUIT'
-        while True:
-            # TODO: update display buffer
+    def event_loop(self):
+        # Check Queue for commands
+        if (!self.queue.empty):
+            item = self.queue.get()
+            # TODO: Spin off Command in separate Thread
+            item.run()
+            self.queue.task_done()
 
-            # prompt user for input
-            input = raw_input('Enter a command: ').split()
+        # keepalive
+        if self.keepalive.expired():
+            self.add(commands.BootstrapKeepAlive(self.client))
 
-            if input[0].upper() == 'QUIT':
-                logging.debug('User entered QUIT command.')
-                print 'Exiting client.'
-                return
-
-            elif input[0].upper() == 'GET':
-                if len(input) == 4:
-                    server, port, filename = input[1:]
-                    port = int(port)
-
-                    logging.debug('User entered GET command. [GET %s %s %s' % (server, port, filename))
-                    command = commands.OutboundDownloadRequest(self, server, port, filename)
-                    self.outbound(command)
-                else:
-                    print 'Invalid GET parameters. Try GET <server> <port> <filename>'
-
-            elif input[0].upper() == 'LIST':
-                if len(input) == 3:
-                    server, port = input[1:]
-                    port = int(port)
-                    logging.debug('User entered LIST command. [LIST %s %s]' % (server, port))
-                    command = commands.OutboundListRequest(self, server, port)
-                    self.outbound(command)
-                else:
-                    print 'Invalid LIST parameters. Try LIST <server> <port>'
-
-            elif input[0].upper() == 'SEARCH':
-                if len(input) == 2:
-                    filename = input[1]
-                    logging.debug('User entered SEARCH command. [SEARCH %s]' % (filename))
-                    id = filename + str(random.randint(100, 999))
-                    requesting_ip = socket.gethostbyname(socket.gethostname())
-                    requesting_port = listen_port
-                    ttl = 10
-
-                    # add id to list of seen searches, so we don't forward our own requests
-                    self.seen.append(id)
-
-                    # generate a Request for each peer in peerlist
-                    for peer in self.peers:
-                        server, port = peer
-                        port = int(port)
-                        print 'Building Command for %s:%s' % (server, port)
-                        command = commands.OutboundSearchRequest(self, server, port, id, filename, requesting_ip, requesting_port, ttl)
-                        self.outbound(command)
-                else:
-                    print 'Invalid SEARCH parameters. Try SEARCH <filename>'
-
-            elif input[0].upper() == 'PEERS':
-                logging.debug('User entered PEERS command.')
-                for peer in self.peers:
-                    print peer
-
-            elif input[0].upper() == 'GETPEERS':
-                logging.debug('User entered GETPEERS command.')
-                self.fetch_peers()
-
-            else:
-                print 'Invalid Command. Try GET, LIST, SEARCH, PEERS, GETPEERS, or QUIT.'
-
+        # file monitor
+        if self.file_monitor.expired():
+            self.client.update_files()
 
     def start(self):
         """Start the P2P client process."""
-        logging.info('Starting client...')
+        self.log(Message.INFO, 'Starting client...')
 
         # gather initial list of available local files
         self.update_files()
@@ -127,89 +97,119 @@ class Client():
         # request peer list
         self.fetch_peers()
 
-        # launch Listen thread
-        t = Listen(self, self.in_queue, self.out_queue, self.listen_port)
-        t.daemon = True
-        t.start()
+        # launch component threads
+        self.listener.start()
+        # self.console.start()      # TODO: Uncomment once Console implemented
 
-        # launch Inbound thread
-        t = InboundQueue(self.in_queue, self.out_queue)
-        t.daemon = True
-        t.start()
+        while True:
+            self.event_loop()
 
-        # launch Outbound thread
-        t = OutboundQueue(self.in_queue, self.out_queue)
-        t.daemon = True
-        t.start()
 
-        # launch KeepAlive thread
-        t = KeepAlive(self.in_queue, self.out_queue, self.keepalive, self)
-        t.daemon = True
-        t.start()
-
-        # launch FileMonitor thread
-        t = FileMonitor(self.local_directory, 1, self)
-        t.daemon = True
-        t.start()
-
-        self.input_loop()
-
-    def outbound(self, command):
-        """Add a command to the outbound queue."""
-        self.out_queue.put(command)
-
-    def inbound(self, command):
+    def add(self, command):
         """Add a command to the inbound queue."""
-        self.in_queue.put(command)
+        self.queue.put(command)
+
+    def add_seen(self, command):
+        """Add a command to the recently seen queue."""
+        self.seen_requests.put(command)
 
     def quit(self):
         """Stop the P2P client process."""
-        # Unregister with Bootstrap Node
-        self.outbound(commands.BootstrapUnregister(self))
+        self.unregister()
 
-        # Wait to finish processing all commands in outbound queue
-        self.out_queue.join()
+        # Wait to finish processing all commands in queue
+        self.queue.join()
 
-        logging.info('Exiting client.')
+        self.log(Message.INFO, 'Exiting client.')
         sys.exit()
+
+    def log(self, level, message):
+        # Write non-debug message to Console buffer
+        if (self.console && level > Message.DEBUG):
+            self.console.write(message)
+
+        # Forward message to appropriate logging function
+        if (level == Message.DEBUG):
+            logging.debug(message)
+        elif (level == Message.INFO):
+            logging.info(message)
+        elif (level == Message.WARNING):
+            logging.warning(message)
+        elif (level == Message.ERROR):
+            logging.error(message)
+        elif (level == Message.CRITICAL):
+            logging.critical(message)
+
 
 class Listener(threading.Thread):
     """Creates a server socket on listen_port for incoming connections."""
     def __init__(self, client):
-	threading.Thread.__init__(self)
-	self.client = client
-	self.queue = client.queue
-	self.listen = client.listen
-	self.factory = commands.CommandFactory()
+        threading.Thread.__init__(self)
+        self.client = client
+        self.queue = client.queue
+        self.listen = client.listen
+        self.factory = commands.CommandFactory()
 
     def run(self):
-	self.log(Message.DEBUG, 'Launching Listener thread'
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	s.bind((self.listen.address, self.listen.port))
-	s.listen(5)
-	while True:
-	    # accept a new client connection
-	    (clientsocket, address) = s.accept()
+        self.client.log(Message.DEBUG, 'Launching Listener thread'
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind((self.listen.address, self.listen.port))
+        s.listen(5)
+        while True:
+            # accept a new client connection
+            (clientsocket, address) = s.accept()
+            self.client.log(Message.DEBUG, 'Client connected:' + str(address))
 
-	    # set timeout so the socket closes when no new data is sent
-	    clientsocket.settimeout(0.4)
+            # set timeout so the socket closes when no new data is sent
+            clientsocket.settimeout(0.4)
 
-	    # continue reading from socket until all data has been received
-	    message = ""
-	    loop_flag = True
-	    while loop_flag:
-		try:
-		    m = clientsocket.recv(4096)
-		    if len(m) <= 0:
-			loop_flag = False
-		    message += m
-		except socket.timeout:
-	    clientsocket.close()
+            # continue reading from socket until all data has been received
+            message = ""
+            loop_flag = True
+            while loop_flag:
+                try:
+                    m = clientsocket.recv(4096)
+                    if len(m) <= 0:
+                        loop_flag = False
+                    message += m
+                    self.client.log(Message.DEBUG, 'Read: %s' % m)
+                except socket.timeout:
+                    self.client.log(Message.DEBUG, 'Socket timed out.')
+            clientsocket.close()
 
-	    # process complete message
-	    # self.process(message, address)
+            # process complete message
+            self.client.log(Message.DEBUG, 'Complete message: %s' % message)
+            # self.process(message, address)
 
 
+class Threadpool():
+    def __init__(self, max_workers):
+        self.max = max_workers
+        self.workers = []
+
+    def acquire(self):
+        # TODO: Finish threadpool
+        return False
+
+    def release(self):
+        # TODO: Finish threadpool
+        return False
+
+class Timer():
+    def __init__(self, seconds):
+        self.seconds = seconds
+        self.start_time = get_current_time()
+
+    def expired(self):
+        current_time = get_current_time()
+        if (current_time > (self.start_time + self.seconds)):
+            self.start = current_time
+            return True
+        else
+            return False
+
+    def get_current_time(self):
+        return time.time()
 
 if __name__ == '__main__':
     bootstrap_server = 'localhost'
