@@ -77,23 +77,7 @@ class Client():
         # self.filelist = os.listdir(self.local_directory)
 
     def event_loop(self):
-        # Check Queue for commands
-        if not self.queue.empty():
-            item = self.queue.get()
-            # TODO: Spin off Command in separate Thread
-            item.run()
-            self.log(Message.DEBUG, 'Running %s' % item)
-            self.queue.task_done()
 
-        # keepalive
-        if self.keepalive.expired():
-            self.log(Message.DEBUG, 'KeepAlive expired')
-            self.add(commands.BootstrapKeepAlive(self))
-
-        # file monitor
-        if self.file_monitor.expired():
-            self.log(Message.DEBUG, 'File Monitor expired')
-            self.client.update_files()
 
     def start(self):
         """Start the P2P client process."""
@@ -113,7 +97,23 @@ class Client():
         # self.console.start()      # TODO: Uncomment once Console implemented
 
         while True:
-            self.event_loop()
+            # Check Queue for commands
+            if not self.queue.empty():
+                item = self.queue.get()
+                # TODO: Spin off Command in separate Thread
+                item.run()
+                self.log(Message.DEBUG, 'Running %s' % item)
+                self.queue.task_done()
+
+            # keepalive
+            if self.keepalive.expired():
+                self.log(Message.DEBUG, 'KeepAlive expired')
+                self.add(commands.BootstrapKeepAlive(self))
+
+            # file monitor
+            if self.file_monitor.expired():
+                self.log(Message.DEBUG, 'File Monitor expired')
+                self.client.update_files()
 
 
     def add(self, command):
