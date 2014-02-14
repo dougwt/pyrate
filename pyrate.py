@@ -19,7 +19,8 @@ Connection = collections.namedtuple('Connection', ['address', 'port'])
 
 
 class Client():
-    def __init__(self, bootstrap_addr, bootstrap_port, listen_addr, listen_port, keepalive, local_directory, log_file, max_workers):
+    def __init__(self, bootstrap_addr, bootstrap_port, listen_addr, listen_port,
+      keepalive, local_directory, log_file, max_workers):
         self.queue = Queue.Queue()
         self.peers = []
         self.seen_requests = []
@@ -28,9 +29,11 @@ class Client():
         self.bootstrap = Connection(bootstrap_addr, bootstrap_port)
         self.listen = Connection(listen_addr, listen_port)
 
-        self.pool = Threadpool(self)
+        self.pool = Threadpool(self.max_workers)
         self.keepalive = Timer(keepalive)
-        self.file_monitor = Timer(5*60)     # TODO: If you use magic numbers, you're gonna have a bad time. 5 minutes * 60 seconds
+        # TODO: If you use magic numbers, you're gonna have a bad time.
+        # 5 minutes * 60 seconds
+        self.file_monitor = Timer(5*60)
         self.max_workers = max_workers  # Max # of simultaneous worker threads
 
         self.shared_path = local_directory
@@ -66,7 +69,8 @@ class Client():
 
     def fetch_peers(self):
         """Fetch a list of peers from bootstrap node."""
-        msg = 'Queueing Bootstrap Request PeerList command (%s:%s)' % self.bootstrap
+        msg = 'Queueing Bootstrap Request PeerList command (%s:%s)' %
+          self.bootstrap
         self.log(Message.DEBUG, msg)
         self.add(commands.BootstrapRequestPeerList(self))
 
@@ -75,9 +79,6 @@ class Client():
         self.log(Message.DEBUG, 'Updating filelist')
         # TODO: Update File List
         # self.filelist = os.listdir(self.local_directory)
-
-    def event_loop(self):
-
 
     def start(self):
         """Start the P2P client process."""
@@ -98,12 +99,13 @@ class Client():
 
         while True:
             # Check Queue for commands
-            if not self.queue.empty():
+            if not self.queue.empty() and self.Threadpool.acquire():
                 item = self.queue.get()
                 # TODO: Spin off Command in separate Thread
                 item.run()
                 self.log(Message.DEBUG, 'Running %s' % item)
                 self.queue.task_done()
+                self.Threadpool.release()
 
             # keepalive
             if self.keepalive.expired():
@@ -114,7 +116,6 @@ class Client():
             if self.file_monitor.expired():
                 self.log(Message.DEBUG, 'File Monitor expired')
                 self.client.update_files()
-
 
     def add(self, command):
         """Add a command to the inbound queue."""
@@ -194,16 +195,22 @@ class Listener(threading.Thread):
 
 class Threadpool():
     def __init__(self, max_workers):
+        self.workers = 0
         self.max = max_workers
-        self.workers = []
 
     def acquire(self):
-        # TODO: Finish threadpool
-        return False
+        if self.workers < self.max:
+            self.workers += 1
+            return True
+        else:
+            return False
 
     def release(self):
-        # TODO: Finish threadpool
-        return False
+        if len(self.workers > 0)
+            workers -= 1
+            return True
+        else:
+            return False
 
 class Timer():
     def __init__(self, seconds):
