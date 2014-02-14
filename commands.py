@@ -84,6 +84,12 @@ class Command():
         pass
 
 
+class CommandFactory():
+    """Stub class for Command Factory."""
+    def __init__(self):
+        pass
+
+
 # Bootstrap Commands
 
 

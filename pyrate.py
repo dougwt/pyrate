@@ -48,18 +48,26 @@ class Client():
 
     def register(self):
         """Register P2P client with bootstrap node."""
+        msg = 'Queueing Bootstrap Register command (%s:%s)' % self.bootstrap
+        self.log(Message.DEBUG, msg)
         self.add(commands.BootstrapRegister(self))
 
     def unregister(self):
         """Unregisteres P2P client with bootstrap node."""
+        msg = 'Queueing Bootstrap Unregister command (%s:%s)' % self.bootstrap
+        self.log(Message.DEBUG, msg)
         self.add(commands.BootstrapUnregister(self))
 
     def keepalive(self):
         """Send KeepAlive message to bootstrap node."""
-        self.add(commands.BootstrapKeepAlive(self.client))
+        msg = 'Queueing Bootstrap KeepAlive command (%s:%s)' % self.bootstrap
+        self.log(Message.DEBUG, msg)
+        self.add(commands.BootstrapKeepAlive(self))
 
     def fetch_peers(self):
         """Fetch a list of peers from bootstrap node."""
+        msg = 'Queueing Bootstrap Request PeerList command (%s:%s)' % self.bootstrap
+        self.log(Message.DEBUG, msg)
         self.add(commands.BootstrapRequestPeerList(self))
 
     def update_files(self):
@@ -70,18 +78,21 @@ class Client():
 
     def event_loop(self):
         # Check Queue for commands
-        if (!self.queue.empty):
+        if not self.queue.empty():
             item = self.queue.get()
             # TODO: Spin off Command in separate Thread
-            item.run()
+            # item.run()
+            self.log(Message.DEBUG, 'Running %s' % item)
             self.queue.task_done()
 
         # keepalive
         if self.keepalive.expired():
-            self.add(commands.BootstrapKeepAlive(self.client))
+            self.log(Message.DEBUG, 'KeepAlive expired')
+            self.add(commands.BootstrapKeepAlive(self))
 
         # file monitor
         if self.file_monitor.expired():
+            self.log(Message.DEBUG, 'File Monitor expired')
             self.client.update_files()
 
     def start(self):
@@ -125,7 +136,7 @@ class Client():
 
     def log(self, level, message):
         # Write non-debug message to Console buffer
-        if (self.console && level > Message.DEBUG):
+        if (self.console and level > Message.DEBUG):
             self.console.write(message)
 
         # Forward message to appropriate logging function
@@ -151,7 +162,7 @@ class Listener(threading.Thread):
         self.factory = commands.CommandFactory()
 
     def run(self):
-        self.client.log(Message.DEBUG, 'Launching Listener thread'
+        self.client.log(Message.DEBUG, 'Launching Listener thread')
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((self.listen.address, self.listen.port))
         s.listen(5)
@@ -198,27 +209,36 @@ class Threadpool():
 class Timer():
     def __init__(self, seconds):
         self.seconds = seconds
-        self.start_time = get_current_time()
+        self.start_time = self.get_current_time()
 
     def expired(self):
-        current_time = get_current_time()
+        current_time = self.get_current_time()
         if (current_time > (self.start_time + self.seconds)):
-            self.start = current_time
+            self.start_time = current_time
             return True
-        else
+        else:
             return False
 
     def get_current_time(self):
         return time.time()
 
 if __name__ == '__main__':
-    bootstrap_server = 'localhost'
+    bootstrap_address = 'localhost'
     bootstrap_port = 21168
+    listen_address = 'localhost'
     listen_port = 63339
-    keepalive_timer = 10
+    keepalive_timer = 1*60
     local_directory = '/Users/dougwt/Code/School/css432/pyrate/files'
     log_file = 'pyrate.log'
+    max_workers = 4
 
-    p = Client(bootstrap_server, bootstrap_port, listen_port, keepalive_timer, local_directory, log_file)
+    p = Client(bootstrap_address,
+               bootstrap_port,
+               listen_address,
+               listen_port,
+               keepalive_timer,
+               local_directory,
+               log_file,
+               max_workers)
     p.start()
     p.quit()
