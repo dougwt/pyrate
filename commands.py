@@ -89,48 +89,56 @@ class CommandFactory():
     def decode(self, message, connection):
         """Decodes a response into the corresponding Command object."""
         address, port = connection
+
+        prefix = message[:2]
+
         # Register Msg Format -> 0:ListeningPort
-        if message.find('0:') == 0:
+        if prefix == '0:':
             # This is not a Bootstrap node, so do nothing
             logging.info('Detected incoming BootstrapRegister message. Discarded.')
 
         # Request Peer List Msg Format -> 1:MaxNumberOfPeersRequested
-        elif message.find('1:') == 0:
+        elif prefix == '1:':
             # This is not a Bootstrap node, so do nothing
             logging.info('Detected incoming BootstrapRequestPeerList message. Discarded.')
 
         # Unregister Msg Format -> 2:ListeningPort
-        elif message.find('2:') == 0:
+        elif prefix == '2:':
             # This is not a Bootstrap node, so do nothing
             logging.info('Detected incoming BootstrapRegister message. Discarded.')
 
         # Keepalive Msg Format -> 3:ListeningPort
-        elif message.find('3:') == 0:
+        elif prefix == '3:':
             # This is not a Bootstrap node, so do nothing
             logging.info('Detected incoming BootstrapRegister message. Discarded.')
 
         # Download Msg Format -> 4:Filename
-        elif message.find('4:') == 0:
+        elif prefix == '4:':
             code, filename = message.split(':')
             logging.info('Detected incoming DownloadRequest message from %s:%s %s' % (address, port, filename))
             return commands.InboundDownloadRequest(self.client, address, port, filename)
 
         # List Files Msg Format -> 5:
-        elif message.find('5:') == 0:
+        elif prefix == '5:':
             logging.info('Detected incoming ListFilesRequest message from %s:%s' % address, port)
             return commands.InboundListRequest(self.client, address, port)
 
         # Search Msg Format -> 6:ID:File String:RequestingIP:RequestingPort:TTL
-        elif message.find('6:') == 0:
+        elif prefix == '6:':
             code, id, filename, requesting_ip, requesting_port, ttl = message.split(':')
             logging.info('Detected incoming SearchRequest message from %s:%s' % (address, port))
             return commands.InboundSearchRequest(self.client, address, port, requesting_ip, requesting_port, filename, ttl)
 
         # Search Response Msg Format -> 7:ID:RespondingIP:RespondingPort:Filename
-        elif message.find('7:') == 0:
+        elif prefix == '7:':
             code, id, respdonding_ip, responding_port, filename = message.split(':')
             logging.info('Detected incoming SearchResponse message from %s:%s %s' % (address, port, filename))
             return commands.InboundSearchResponse(self.client, address, port, filename, respdonding_ip, responding_port)
+
+
+        # TODO: else case should result in the message being discarded.
+        # I'm leaving this here for now until I can refactor the Files Response
+        # message directly into the RequestFiles Command.
 
         # List Files Response Msg Format ->Filename1\nFilename2\n (etc.)
         else:
