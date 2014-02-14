@@ -135,7 +135,8 @@ class Client():
         self.log(Message.INFO, 'Exiting client.')
         sys.exit()
 
-    def log(self, level, message):
+    def log(self, level, message = Message.INFO):
+        """Generate a log message with the given level of importance."""
         # Write non-debug message to Console buffer
         if (self.console and level > Message.DEBUG):
             self.console.write(message)
@@ -162,6 +163,7 @@ class Listener(threading.Thread):
         self.listen = client.listen
 
     def run(self):
+        """Monitor server socket for incoming connections."""
         self.client.log(Message.DEBUG, 'Launching Listener thread')
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((self.listen.address, self.listen.port))
@@ -194,11 +196,13 @@ class Listener(threading.Thread):
 
 
 class Threadpool():
+    """A simple counter to track the number of current worker threads."""
     def __init__(self, max_workers):
         self.workers = 0
         self.max = max_workers
 
     def acquire(self):
+        """Returns True if there is room for another available Worker."""
         if self.workers < self.max:
             self.workers += 1
             return True
@@ -206,6 +210,7 @@ class Threadpool():
             return False
 
     def release(self):
+        """Returns True if a worker was successfully released."""
         if len(self.workers > 0)
             workers -= 1
             return True
@@ -213,19 +218,22 @@ class Threadpool():
             return False
 
 class Timer():
+"""A simple timer that expires at a set interval given in seconds."""
     def __init__(self, seconds):
         self.seconds = seconds
         self.start_time = self.get_current_time()
 
     def expired(self):
+        """Returns True if enough time has elapsed since start_time."""
         current_time = self.get_current_time()
         if (current_time > (self.start_time + self.seconds)):
-            self.start_time = current_time
+            self.start_time = current_time  # prepare for next interval
             return True
         else:
             return False
 
     def get_current_time(self):
+        """Returns the current time in seconds."""
         return time.time()
 
 if __name__ == '__main__':
