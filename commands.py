@@ -97,21 +97,21 @@ class BootstrapRegister(Command):
     """Register with the Bootstrap Node."""
     def run(self):
         logging.info('Registering with Bootstrap Node %s:%s' %
-            (self.client.bootstrap_server, self.client.bootstrap_port))
+            (self.client.bootstrap.address, self.client.bootstrap.port))
 
-        bootstrap = Socket(self.client.bootstrap_server, self.client.bootstrap_port)
+        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
 
         # Register Message
-        bootstrap.send('0:%s' % self.client.bootstrap_port)
+        bootstrap.send('0:%s' % self.client.bootstrap.port)
 
 
 class BootstrapRequestPeerList(Command):
     """Request an updated Peer List from the Bootstrap Node."""
     def run(self):
         logging.info('Requesting Peer List from Bootstrap Node %s:%s' %
-            (self.client.bootstrap_server, self.client.bootstrap_port))
+            (self.client.bootstrap.address, self.client.bootstrap.port))
 
-        bootstrap = Socket(self.client.bootstrap_server, self.client.bootstrap_port)
+        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
 
         # Request Peer List Message
         bootstrap.send('1:3')
@@ -136,24 +136,24 @@ class BootstrapUnregister(Command):
     """Unregister with the Bootstrap Node."""
     def run(self):
         logging.info('Unregistering with Bootstrap Node %s:%s' %
-            (self.client.bootstrap_server, self.client.bootstrap_port))
+            (self.client.bootstrap.address, self.client.bootstrap.port))
 
-        bootstrap = Socket(self.client.bootstrap_server, self.client.bootstrap_port)
+        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
 
         # Unregister Message
-        bootstrap.send('2:%s' % self.client.bootstrap_port)
+        bootstrap.send('2:%s' % self.client.bootstrap.port)
 
 
 class BootstrapKeepAlive(Command):
     """Transmit a KeepAlive message to the Bootstrap Node."""
     def run(self):
         logging.info('Sending KeepAlive to Bootstrap Node %s:%s' %
-            (self.client.bootstrap_server, self.client.bootstrap_port))
+            (self.client.bootstrap.address, self.client.bootstrap.port))
 
-        bootstrap = Socket(self.client.bootstrap_server, self.client.bootstrap_port)
+        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
 
         # KeepAlive Message
-        bootstrap.send('3:%s' % self.client.bootstrap_port)
+        bootstrap.send('3:%s' % self.client.bootstrap.port)
 
 
 # Inbound Commands

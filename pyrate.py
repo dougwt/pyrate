@@ -81,7 +81,7 @@ class Client():
         if not self.queue.empty():
             item = self.queue.get()
             # TODO: Spin off Command in separate Thread
-            # item.run()
+            item.run()
             self.log(Message.DEBUG, 'Running %s' % item)
             self.queue.task_done()
 
