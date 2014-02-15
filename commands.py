@@ -223,7 +223,7 @@ class InboundDownloadRequest(Command):
 
 
 class InboundListRequest(Command):
-    """Inbound List Request."""
+    """Inbound File List Request."""
     def __init__(self, client, server, port, *args, **kwargs):
         self.client = client
         self.server = server
@@ -233,9 +233,28 @@ class InboundListRequest(Command):
         logging.info('Received File List Request from %s:%s' %
             (self.server, self.port))
 
-        # add file list response to outbound queue
-        command = OutboundListResponse(self.client, self.server, self.port)
-        self.client.add(command)
+        # format file list for transmission
+        if len(self.filelist) > 0:
+            msg = ('\n').join(self.client.filelist) + '\n'
+        else:
+            msg = ''
+
+        logging.info('Sending File List Response to %s:%s...' %
+            (self.server, self.port))
+
+        bootstrap = Socket(self.server, self.port)
+
+        # List Files Response Message
+        bootstrap.send(msg)
+
+        # format file list for transmission
+        if len(self.filelist) > 0:
+            msg = ('\n').join(self.client.filelist) + '\n'
+        else:
+            msg = ''
+
+        # List Files Response Message
+        bootstrap.send(msg)
 
 
 class InboundListResponse(Command):
@@ -434,30 +453,6 @@ class OutboundListRequest(Command):
 
         # List Files Message
         bootstrap.send('5:')
-
-
-class OutboundListResponse(Command):
-    """Outbound List Files Response."""
-    def __init__(self, client, server, port, *args, **kwargs):
-        self.client = client
-        self.server = server
-        self.port = port
-
-    def run(self):
-        # TODO:  self.filename does not exist. Perhaps I never finished implementing args?
-        logging.info('Sending File List Response to %s:%s' %
-            (self.filename, self.server, self.port))
-
-        bootstrap = Socket(self.server, self.port)
-
-        # format file list for transmission
-        if len(self.filelist) > 0:
-            msg = ('\n').join(self.client.filelist) + '\n'
-        else:
-            msg = ''
-
-        # List Files Response Message
-        bootstrap.send(msg)
 
 
 class OutboundSearchRequest(Command):
