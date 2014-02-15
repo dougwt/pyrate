@@ -169,73 +169,28 @@ class Decode(Command):
             logging.debug('Queueing (%s:%s) %s' % (self.connection.address, self.connection.port, command))
             self.client.add(command)
 
-# Bootstrap Commands
-
-
-class BootstrapRegister(Command):
-    """Register with the Bootstrap Node."""
-    def run(self):
-        logging.info('Registering with Bootstrap Node %s:%s' %
-            (self.client.bootstrap.address, self.client.bootstrap.port))
-
-        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
-
-        # Register Message
-        bootstrap.send('0:%s' % self.client.bootstrap.port)
-
-
-class BootstrapRequestPeerList(Command):
-    """Request an updated Peer List from the Bootstrap Node."""
-    def run(self):
-        logging.info('Requesting Peer List from Bootstrap Node %s:%s' %
-            (self.client.bootstrap.address, self.client.bootstrap.port))
-
-        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
-
-        # Request Peer List Message
-        bootstrap.send('1:3')
-
-        peer_list_response = bootstrap.recv()
-        logging.info('Received Peer List Response: %s' % peer_list_response)
-
-        peerlist = []
-        for item in peer_list_response.split('\n')[0:-1]:
-            node = item.split(',')
-            peerlist.append((node[0], node[1]))
-
-        # update peer list with any new peers
-        for peer in peerlist:
-            if peer not in self.client.peers:
-                self.client.peers.append(peer)
-
-        # return peer_list_response
-
-
-class BootstrapUnregister(Command):
-    """Unregister with the Bootstrap Node."""
-    def run(self):
-        logging.info('Unregistering with Bootstrap Node %s:%s' %
-            (self.client.bootstrap.address, self.client.bootstrap.port))
-
-        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
-
-        # Unregister Message
-        bootstrap.send('2:%s' % self.client.bootstrap.port)
-
-
-class BootstrapKeepAlive(Command):
-    """Transmit a KeepAlive message to the Bootstrap Node."""
-    def run(self):
-        logging.info('Sending KeepAlive to Bootstrap Node %s:%s' %
-            (self.client.bootstrap.address, self.client.bootstrap.port))
-
-        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
-
-        # KeepAlive Message
-        bootstrap.send('3:%s' % self.client.bootstrap.port)
-
 
 # Inbound Commands
+
+
+class InboundBootstrapRegister(Command):
+    def run(self):
+        pass
+
+
+class InboundBootstrapRequestPeerList(Command):
+    def run(self):
+        pass
+
+
+class InboundBootstrapUnregister(Command):
+    def run(self):
+        pass
+
+
+class InboundBootstrapKeepAlive(Command):
+    def run(self):
+        pass
 
 
 class InboundDownloadRequest(Command):
@@ -379,6 +334,69 @@ class InboundPeerListResponse(Command):
 
 
 # Outbound Commands
+
+
+class OutboundBootstrapRegister(Command):
+    """Register with the Bootstrap Node."""
+    def run(self):
+        logging.info('Registering with Bootstrap Node %s:%s' %
+            (self.client.bootstrap.address, self.client.bootstrap.port))
+
+        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
+
+        # Register Message
+        bootstrap.send('0:%s' % self.client.bootstrap.port)
+
+
+class OutboundBootstrapRequestPeerList(Command):
+    """Request an updated Peer List from the Bootstrap Node."""
+    def run(self):
+        logging.info('Requesting Peer List from Bootstrap Node %s:%s' %
+            (self.client.bootstrap.address, self.client.bootstrap.port))
+
+        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
+
+        # Request Peer List Message
+        bootstrap.send('1:3')
+
+        peer_list_response = bootstrap.recv()
+        logging.info('Received Peer List Response: %s' % peer_list_response)
+
+        peerlist = []
+        for item in peer_list_response.split('\n')[0:-1]:
+            node = item.split(',')
+            peerlist.append((node[0], node[1]))
+
+        # update peer list with any new peers
+        for peer in peerlist:
+            if peer not in self.client.peers:
+                self.client.peers.append(peer)
+
+        # return peer_list_response
+
+
+class OutboundBootstrapUnregister(Command):
+    """Unregister with the Bootstrap Node."""
+    def run(self):
+        logging.info('Unregistering with Bootstrap Node %s:%s' %
+            (self.client.bootstrap.address, self.client.bootstrap.port))
+
+        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
+
+        # Unregister Message
+        bootstrap.send('2:%s' % self.client.bootstrap.port)
+
+
+class OutboundBootstrapKeepAlive(Command):
+    """Transmit a KeepAlive message to the Bootstrap Node."""
+    def run(self):
+        logging.info('Sending KeepAlive to Bootstrap Node %s:%s' %
+            (self.client.bootstrap.address, self.client.bootstrap.port))
+
+        bootstrap = Socket(self.client.bootstrap.address, self.client.bootstrap.port)
+
+        # KeepAlive Message
+        bootstrap.send('3:%s' % self.client.bootstrap.port)
 
 
 class OutboundDownloadRequest(Command):

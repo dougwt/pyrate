@@ -53,25 +53,25 @@ class Client():
         """Register P2P client with bootstrap node."""
         msg = 'Queueing Bootstrap Register command (%s:%s)' % self.bootstrap
         self.log(Message.DEBUG, msg)
-        self.add(commands.BootstrapRegister(self))
+        self.add(commands.OutboundBootstrapRegister(self))
 
     def unregister(self):
         """Unregisteres P2P client with bootstrap node."""
         msg = 'Queueing Bootstrap Unregister command (%s:%s)' % self.bootstrap
         self.log(Message.DEBUG, msg)
-        self.add(commands.BootstrapUnregister(self))
+        self.add(commands.OutboundBootstrapUnregister(self))
 
     def keepalive(self):
         """Send KeepAlive message to bootstrap node."""
         msg = 'Queueing Bootstrap KeepAlive command (%s:%s)' % self.bootstrap
         self.log(Message.DEBUG, msg)
-        self.add(commands.BootstrapKeepAlive(self))
+        self.add(commands.OutboundBootstrapKeepAlive(self))
 
     def fetch_peers(self):
         """Fetch a list of peers from bootstrap node."""
         msg = 'Queueing Bootstrap Request PeerList command (%s:%s)' % self.bootstrap
         self.log(Message.DEBUG, msg)
-        self.add(commands.BootstrapRequestPeerList(self))
+        self.add(commands.OutboundBootstrapRequestPeerList(self))
 
     def update_files(self):
         """Refreshes current filelist with local directory contents."""
@@ -109,7 +109,7 @@ class Client():
             # keepalive
             if self.keepalive.expired():
                 self.log(Message.DEBUG, 'KeepAlive expired')
-                self.add(commands.BootstrapKeepAlive(self))
+                self.add(commands.OutboundBootstrapKeepAlive(self))
 
             # file monitor
             if self.file_monitor.expired():
