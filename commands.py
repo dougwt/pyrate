@@ -315,24 +315,6 @@ class InboundSearchResponse(Command):
         # TODO: Display Search Results
 
 
-class InboundPeerListResponse(Command):
-    """Inbound Peer List Response from Bootstrap Node."""
-    def __init__(self, client, server, port, peerlist, *args, **kwargs):
-        self.client = client
-        self.server = server
-        self.port = port
-        self.peerlist = peerlist
-
-    def run(self):
-        logging.info('Received Peer List Response from Bootstrap Node %s:%s : %s' %
-            (self.server, self.port, self.peerlist))
-
-        # update peer list with any new peers
-        for peer in self.peerlist:
-            if peer not in self.client.peers:
-                self.client.peers.add(peer)
-
-
 # Outbound Commands
 
 
