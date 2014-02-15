@@ -76,7 +76,7 @@ class ServerSocket(Socket):
 class Command():
     """Abstract Base Class for Inbound and Outbound Queue Commands."""
     __metaclass__  = abc.ABCMeta
-    def __init__(self, client, *args, **kwargs):
+    def __init__(self, client):
         self.client = client
 
     @abc.abstractmethod
@@ -199,7 +199,7 @@ class InboundBootstrapKeepAlive(Command):
 
 class InboundDownloadRequest(Command):
     """Inbound Download Request."""
-    def __init__(self, client, server, port, filename, *args, **kwargs):
+    def __init__(self, client, server, port, filename):
         self.client = client
         self.server = server
         self.port = port
@@ -224,7 +224,7 @@ class InboundDownloadRequest(Command):
 
 class InboundListRequest(Command):
     """Inbound File List Request."""
-    def __init__(self, client, server, port, *args, **kwargs):
+    def __init__(self, client, server, port):
         self.client = client
         self.server = server
         self.port = port
@@ -259,7 +259,7 @@ class InboundListRequest(Command):
 
 class InboundSearchRequest(Command):
     """Inbound Search Request."""
-    def __init__(self, client, server, port, requesting_ip, requesting_port, ident, filename, ttl, *args, **kwargs):
+    def __init__(self, client, server, port, requesting_ip, requesting_port, ident, filename, ttl):
         self.client = client
         self.server = server
         self.port = port
@@ -308,7 +308,7 @@ class InboundSearchRequest(Command):
 
 class InboundSearchResponse(Command):
     """Inbound Search Response."""
-    def __init__(self, client, server, port, filename, responding_ip, responding_port, *args, **kwargs):
+    def __init__(self, client, server, port, filename, responding_ip, responding_port):
         self.client = client
         self.server = server
         self.port = port
@@ -391,7 +391,7 @@ class OutboundBootstrapKeepAlive(Command):
 
 class OutboundDownloadRequest(Command):
     """Outbound Download Request."""
-    def __init__(self, client, server, port, filename, *args, **kwargs):
+    def __init__(self, client, server, port, filename):
         self.client = client
         self.server = server
         self.port = port
@@ -425,7 +425,7 @@ class OutboundDownloadRequest(Command):
 
 class OutboundListRequest(Command):
     """Outbound Download Request."""
-    def __init__(self, client, server, port, *args, **kwargs):
+    def __init__(self, client, server, port):
         self.client = client
         self.server = server
         self.port = port
@@ -447,7 +447,7 @@ class OutboundListRequest(Command):
 
 class OutboundSearchRequest(Command):
     """Outbound Search Request."""
-    def __init__(self, client, server, port, id, filename, requesting_ip, requesting_port, ttl, *args, **kwargs):
+    def __init__(self, client, server, port, id, filename, requesting_ip, requesting_port, ttl):
         self.client = client
         self.server = server
         self.port = port
@@ -473,7 +473,7 @@ class OutboundSearchRequest(Command):
 
 class OutboundSearchResponse(Command):
     """Outbound Search Response."""
-    def __init__(self, client, server, port, id, responding_ip, responding_port, filename, *args, **kwargs):
+    def __init__(self, client, server, port, id, responding_ip, responding_port, filename):
         self.client = client
         self.server = server
         self.port = port
