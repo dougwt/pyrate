@@ -257,21 +257,6 @@ class InboundListRequest(Command):
         bootstrap.send(msg)
 
 
-class InboundListResponse(Command):
-    """Inbound List Response."""
-    def __init__(self, client, server, port, filelist, *args, **kwargs):
-        self.client = client
-        self.server = server
-        self.port = port
-        self.filelist = filelist
-
-    def run(self):
-        logging.info('Received File List Response from %s:%s : %s' %
-            (self.server, self.port, self.filelist))
-
-        # TODO: Display List Files Result
-
-
 class InboundSearchRequest(Command):
     """Inbound Search Request."""
     def __init__(self, client, server, port, requesting_ip, requesting_port, ident, filename, ttl, *args, **kwargs):
@@ -453,6 +438,11 @@ class OutboundListRequest(Command):
 
         # List Files Message
         bootstrap.send('5:')
+
+        # Receive response
+        filelist = bootstrap.recv()
+
+        logging.info('Received File List response (%s:%s):\n %s' % (self.server, self.port, filelist))
 
 
 class OutboundSearchRequest(Command):
