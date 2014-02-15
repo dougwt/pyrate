@@ -174,21 +174,25 @@ class Decode(Command):
 
 
 class InboundBootstrapRegister(Command):
+    # TODO: Implement stub
     def run(self):
         pass
 
 
 class InboundBootstrapRequestPeerList(Command):
+    # TODO: Implement stub
     def run(self):
         pass
 
 
 class InboundBootstrapUnregister(Command):
+    # TODO: Implement stub
     def run(self):
         pass
 
 
 class InboundBootstrapKeepAlive(Command):
+    # TODO: Implement stub
     def run(self):
         pass
 
