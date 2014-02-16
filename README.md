@@ -62,7 +62,7 @@ Keepalive | `3:ListeningPort`
 
 Message | Format
 --- | ---
-Download Request `4:Filename`
+Download Request | `4:Filename`
 Download Response | `FILE`
 List Files Request | `5:`
 List Files Response | `Filename1\nFilename2\n (etc.)`
