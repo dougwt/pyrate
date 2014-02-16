@@ -53,8 +53,8 @@ Lagesse. It includes support for the following:
 Message | Format
 --- | ---
 Register | `0:ListeningPort`
-Request Peer List | `1:MaxNumberOfPeersRequested`
-Response Peer List | `IPAddress1,PortNumber1\nIPAddress2,PortNumber2\n (etc.)`
+Peer List Request | `1:MaxNumberOfPeersRequested`
+Peer List Response | `IPAddress1,PortNumber1\nIPAddress2,PortNumber2\n (etc.)`
 Unregister | `2:ListeningPort`
 Keepalive | `3:ListeningPort`
 
@@ -62,10 +62,11 @@ Keepalive | `3:ListeningPort`
 
 Message | Format
 --- | ---
+Download Request `4:Filename`
 Download Response | `FILE`
-List Files | `5:`
+List Files Request | `5:`
 List Files Response | `Filename1\nFilename2\n (etc.)`
-Search | `6:ID:File String:RequestingIP:RequestingPort:TTL`
+Search Request | `6:ID:File String:RequestingIP:RequestingPort:TTL`
 Search Response | `7:ID:RespondingIP:RespondingPort:Filename`
 
 ## Client
