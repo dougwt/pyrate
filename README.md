@@ -9,7 +9,19 @@
     - [Client parameters](#client-parameters)
     - [Example client code](#example-client-code)
     - [Bootstrap client](#bootstrap-client)
-- [Commands](#commands)
+- [Command objects](#command-objects)
+    - [Internal](#internal)
+        - [Decode](#decode)
+    - [Bootstrap](#bootstrap)
+        - [BootstrapRegister](#bootstrapregister)
+        - [BootstrapUnregister](#bootstrapunregister)
+        - [BootstrapRequestPeerList](#bootstraprequestpeerlist)
+        - [BootstrapKeepAlive](#bootstrapkeepalive)
+    - [Peer](#peer)
+        - [DownloadRequest](#downloadrequest)
+        - [ListRequest](#listrequest)
+        - [SearchRequest](#searchrequest)
+        - [SearchResponse](#searchresponse)
     - [Command sequence diagram](#command-sequence-diagrams)
 - [Feedback](#feedback)
 
@@ -138,13 +150,37 @@ instantiating the `Bootstrap` class.
 
 **TODO:** Finish section
 
-## Commands
+## Command objects
 
-**TODO:** Insert commands
+**TODO:** Add sequence diagrams for each command type; describe Inbound/Outbound
 
-### Command sequence diagrams
+### Internal
 
-**TODO:** Insert sequence diagram
+##### Decode
+
+### Bootstrap
+
+##### BootstrapRegister
+
+##### BootstrapUnregister
+
+##### BootstrapRequestPeerList
+
+##### BootstrapKeepAlive
+
+### Peer
+
+##### DownloadRequest
+
+##### ListRequest
+
+##### SearchRequest
+
+##### SearchResponse
+
+### Typical command sequence
+
+**TODO:** Add sequence diagram showing typical command sequence
 
 ## Feedback
 
