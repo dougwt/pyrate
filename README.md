@@ -174,10 +174,14 @@ message protocol.
 
 Because protocol commands require different actions depending whether they
 are being sent or received, each protocol message has two corresponding
-commands: inbound and outbound. Typically, when an outbound command is run on
-one client, it generates the reciprocol inbound command in the peer client.
-See Figure 1 below for a sequence diagram of a typical inbound/outbound
-interaction.
+commands: inbound and outbound. Typically, inbound commands are responsible for
+establishing incoming sockets and receiving information, while outbound sockets
+are responsible for establishing outgoing connections and sending information.
+
+In some cases, when an outbound command is run on one peer, its reciprocating
+inbound command on the other peer may automatically generate an additional outbound
+command in response. See Figure 1 below for a sequence diagram of a typical
+inbound/outbound interaction.
 
 **Figure 1:** *A typical inbound/outbound command interaction between two
 peers.*
