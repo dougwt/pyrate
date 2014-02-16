@@ -40,7 +40,8 @@ explore the following concepts:
 
 ## Message protocol
 
-Pyrate currently uses the same simple protocol provided by Professor Brent Lagesse. It includes support for the following:
+Pyrate currently uses the same simple protocol provided by Professor Brent
+Lagesse. It includes support for the following:
 
 ### Bootstrap protocol
 
@@ -66,7 +67,10 @@ Search Response | `7:ID:RespondingIP:RespondingPort:Filename`
 
 ### Starting a simple client
 
-The Pyrate network relies on Bootstrap nodes to track available peers for clients to communicate with. **TODO:** Finish section
+The Pyrate network relies on Bootstrap nodes to track available peers for
+clients to communicate with.
+
+**TODO:** Finish section
 
 ### Client parameters
 
@@ -95,7 +99,8 @@ The Pyrate network relies on Bootstrap nodes to track available peers for client
 > Path to a local file containing log information
 
 **max_workers**
-> Maximum number of simultaneous worker threads available to process Commands from the queue
+> Maximum number of simultaneous worker threads available to process Commands
+from the queue
 
 ### Example client code
 
@@ -127,7 +132,11 @@ c.quit()
 
 ### Bootstrap client
 
-The Pyrate network relies on Bootstrap nodes to track available peers for clients to communicate with. Bootstrap nodes may be run standalone by instantiating the `Bootstrap` class. **TODO:** Finish section
+The Pyrate network relies on Bootstrap nodes to track available peers for
+clients to communicate with. Bootstrap nodes may be run standalone by
+instantiating the `Bootstrap` class.
+
+**TODO:** Finish section
 
 ## Commands
 
