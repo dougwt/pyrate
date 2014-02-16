@@ -10,19 +10,20 @@
     - [Example client code](#example-client-code)
     - [Bootstrap client](#bootstrap-client)
 - [Command objects](#command-objects)
-    - [Internal](#internal)
+    - [Internal commands](#internal-commands)
         - [Decode](#decode)
-    - [Bootstrap](#bootstrap)
-        - [BootstrapRegister](#bootstrapregister)
-        - [BootstrapUnregister](#bootstrapunregister)
-        - [BootstrapRequestPeerList](#bootstraprequestpeerlist)
-        - [BootstrapKeepAlive](#bootstrapkeepalive)
-    - [Peer](#peer)
-        - [DownloadRequest](#downloadrequest)
-        - [ListRequest](#listrequest)
-        - [SearchRequest](#searchrequest)
-        - [SearchResponse](#searchresponse)
-    - [Command sequence diagram](#command-sequence-diagrams)
+    - [Protocol commands](#protocol-commands)
+        - [Bootstrap](#bootstrap)
+            - [BootstrapRegister](#bootstrapregister)
+            - [BootstrapUnregister](#bootstrapunregister)
+            - [BootstrapRequestPeerList](#bootstraprequestpeerlist)
+            - [BootstrapKeepAlive](#bootstrapkeepalive)
+        - [Peer](#peer)
+            - [DownloadRequest](#downloadrequest)
+            - [ListRequest](#listrequest)
+            - [SearchRequest](#searchrequest)
+            - [SearchResponse](#searchresponse)
+    - [Command object flow](#command-object-flow)
 - [Feedback](#feedback)
 
 ## Introduction
@@ -152,35 +153,73 @@ instantiating the `Bootstrap` class.
 
 ## Command objects
 
-**TODO:** Add sequence diagrams for each command type; describe Inbound/Outbound
+Pyrate uses a producer/consumer queueing model with a user-defined pool of
+worker threads. Each Command object corresponds to one of the following types:
 
-### Internal
+
+### Internal commands
+
+Internal commands provide a way of offloading client-specific tasks into
+worker threads.
 
 ##### Decode
 
-### Bootstrap
+Rather than monopolize the Listener with the task of decoding incoming
+messages, Decode commands are generated each time the Listener receives a
+message. Once the Decode object is run by a worker, the received message is
+decoded and used to generate a second Command object corresponding to the
+message protocol.
 
-##### BootstrapRegister
+### Protocol commands
 
-##### BootstrapUnregister
+Because protocol commands require different actions depending whether they
+are being sent or received, each protocol message has two corresponding
+commands: inbound and outbound. Typically, when an outbound command is run on
+one client, it generates the reciprocol inbound command in the peer client.
+See Figure 1 below for a sequence diagram of a typical inbound/outbound
+interaction.
 
-##### BootstrapRequestPeerList
+**Figure 1:** *A typical inbound/outbound command interaction between two
+peers.*
 
-##### BootstrapKeepAlive
+![alt text](img/command-sequence.png "A typica Command sequence")
 
-### Peer
+#### Bootstrap
 
-##### DownloadRequest
+- BootstrapRegister
+- BootstrapUnregister
+- BootstrapRequestPeerList
+- BootstrapKeepAlive
 
-##### ListRequest
+#### Peer
 
-##### SearchRequest
+- DownloadRequest
+- ListRequest
+- SearchRequest
+- SearchResponse
 
-##### SearchResponse
+### Command object flow
 
-### Typical command sequence
+Figure 2 illustrates the flow of command objects during typical client
+activities.
 
-**TODO:** Add sequence diagram showing typical command sequence
+**Figure 2:** *A typical command sequence.*
+
+![alt text](img/command-sequence2.png "A typical Command sequence")
+
+1. *Peer A*'s user launches the Pyrate client, causing it to send a
+`BootstrapRegister` command to a *Bootstrap node* and join the network.
+1. *Peer A* sends a `BootstrapRequestPeerList` command to the *Bootstrap node*
+to request a list of peers.
+1. *Peer A* wishes to search the network, so its user broadcasts a
+`SearchRequest` command to its peers. Fortunately, *Peer B* has the file
+sought by *Peer A*, so its client automatically sends a `SearchResponse` back
+to *Peer A* letting them know the file is available.
+1. *Peer A*'s user, having been notified that a peer posseses the file they
+seek, issues the download command. *Peer A*'s client sends a `DownloadRequest`
+command to *Peer B*'s client, which then transmits the file.
+1. *Peer A*, a notorious leecher, exits the Pyrate client, causing it to send
+a `BootstrapUnregister` command to the *Bootstrap node* and leave the network.
 
 ## Feedback
 
