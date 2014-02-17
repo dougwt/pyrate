@@ -2,6 +2,8 @@ import abc
 from logging import debug
 import socket
 
+DEBUG = 0  # KLUDGE: Stand-in for Message.DEBUG
+
 class Socket():
     """Establishes a socket connection."""
     def __init__(self, address, port):
@@ -91,8 +93,8 @@ class Command():
     def run(self):
         pass
 
-    def log(msg):
-        return self.client.log(Messages.DEBUG, msg)
+    def log(self, msg):
+        return self.client.log(DEBUG, msg)
 
 
 class CommandFactory():
@@ -103,7 +105,7 @@ class CommandFactory():
         address, port = connection
 
         def log(msg):
-            return client.log(Messages.DEBUG, msg)
+            return client.log(DEBUG, msg)
 
         prefix = message[:2]
 
@@ -188,8 +190,7 @@ class Decode(Command):
         command = CommandFactory.decode(self.client, self.message,
           self.connection)
 
-        log('Decoding \'%s\' (%s:%s) -> %s' % (self.message,
-          self.connection.address, self.connection.port, command))
+        self.log('Decoding \'%s\' (%s:%s) -> %s' % (self.message, self.connection.address, self.connection.port, command))
 
         if command:
             msg = 'Queueing (%s:%s) %s'
@@ -488,8 +489,8 @@ class OutboundSearchRequest(Command):
         # This line causes an error for some reason, so use alt string below
         # message = '6:%s:%s:%s' % (self.id, self.filename, self.requesting_ip,
         #   self.requesting_port, self.ttl)
-        message = '6:' + self.id + ':' + str(self.filename) + ':' + str(
-          self.requesting_ip) + ':' + str(self.requesting_port) + ':' +
+        message = '6:' + self.id + ':' + str(self.filename) + ':' + \
+          str(self.requesting_ip) + ':' + str(self.requesting_port) + ':' + \
           str(self.ttl)
 
         # Search Message
