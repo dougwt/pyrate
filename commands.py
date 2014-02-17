@@ -190,7 +190,9 @@ class Decode(Command):
         command = CommandFactory.decode(self.client, self.message,
           self.connection)
 
-        self.log('Decoding \'%s\' (%s:%s) -> %s' % (self.message, self.connection.address, self.connection.port, command))
+        msg = 'Decoding \'%s\' (%s:%s) -> %s' % (self.message, \
+          self.connection.address, self.connection.port, command)
+        self.log(msg)
 
         if command:
             msg = 'Queueing (%s:%s) %s'
