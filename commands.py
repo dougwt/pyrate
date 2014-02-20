@@ -106,10 +106,10 @@ class Command():
 
 class ConnectionCommand(Command):
     def__init__(self, client, connection):
+        Command.__init__(self, client)
         self.connection = connection
         self.address = self.connection.address
         self.port = self.connection.port
-        Command.__init__(self, client)
 
     @abc.abstractmethod
     def run(self):
@@ -200,9 +200,9 @@ class CommandFactory():
 
 class Decode(ConnectionCommand):
     """Contains a received message that is yet to be decoded."""
-    def __init__(self, client, message, connection):
-        self.message = message
+    def __init__(self, client, connection, message):
         ConnectionCommand.__init__(self, client, connection)
+        self.message = message
 
     def run(self):
         command = CommandFactory.decode(self.client, self.message,
@@ -352,8 +352,8 @@ class OutboundBootstrapKeepAlive(Command):
 class InboundDownloadRequest(ConnectionCommand):
     """Respond with the requested file."""
     def __init__(self, client, connection, filename):
-        self.filename = filename
         ConnectionCommand.__init__(client, connection)
+        self.filename = filename
 
     def run(self):
         log('Received Download Request from %s:%s' % (self.address, self.port))
@@ -373,9 +373,9 @@ class InboundDownloadRequest(ConnectionCommand):
 
 class OutboundDownloadRequest(ConnectionCommand):
     """Request a file from a peer."""
-    def __init__(self, connection, filename):
+    def __init__(self, client, connection, filename):
+        ConnectionCommand.__init__(self, client, connection)
         self.filename = filename
-        ConnectionCommand.__init__(self, connection)
 
     def run(self):
         msg = 'Sending Download Request for \'%s\' to %s:%s'
@@ -458,12 +458,12 @@ class InboundSearchRequest(ConnectionCommand):
     """Check to see if we have the requested file."""
     def __init__(self, client, connection, requesting_ip, requesting_port,
       ident, filename, ttl):
+        ConnectionCommand.__init__(self, client, connection)
         self.requesting_ip = requesting_ip
         self.requesting_port = requesting_port
         self.id = ident
         self.filename = filename
         self.ttl = ttl
-        ConnectionCommand.__init__(self, client, connection)
 
     def run(self):
         msg = 'Received Search Request for \'%s\' from %s:%s : %s'
@@ -497,12 +497,12 @@ class OutboundSearchRequest(ConnectionCommand):
     """Notify peers of your request."""
     def __init__(self, client, connection, id, filename, requesting_ip,
       requesting_port, ttl):
+        ConnectionCommand.__init__(self, client, connection)
         self.id = id
         self.filename = filename
         self.requesting_ip = requesting_ip
         self.requesting_port = requesting_port
         self.ttl = ttl
-        ConnectionCommand.__init__(self, client, connection)
 
     def run(self):
         msg = 'Sending Search Request for \'%s\' to %s:%s'
@@ -528,10 +528,10 @@ class InboundSearchResponse(ConnectionCommand):
     """Process search response from peers."""
     def __init__(self, client, connection, filename, responding_ip,
       responding_port):
+        ConnectionCommand.__init__(self, client, connection)
         self.filename = filename
         self.responding_ip
         self.responding_port
-        ConnectionCommand.__init__(self, client, connection)
 
     def run(self):
         msg = 'Received File List Response from %s:%s : %s'
@@ -544,11 +544,11 @@ class OutboundSearchResponse(ConnectionCommand):
     """Respond to a peer's search request."""
     def __init__(self, client, connection, id, responding_ip, responding_port,
       filename):
+        ConnectionCommand.__init__(self, client, connection)
         self.id = id
         self.responding_ip = responding_ip
         self.responding_port = responding_port
         self.filename = filename
-        ConnectionCommand.__init__(self, client, connection)
 
     def run(self):
         msg = 'Sending Search Response for \'%s\' to %s:%s'
