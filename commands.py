@@ -205,9 +205,15 @@ class Decode(Command):
 
 class InboundBootstrapRegister(Command):
     """Registers the sending peer with the network."""
-    # TODO: Implement stub
+    def __init__(self, client, connection):
+        self.client = client
+        self.connection = connection
+
     def run(self):
-        pass
+        msg = 'Registering new client (%s, %s)'
+        log(msg % (self.connection.address, self.connection.port))
+
+        self.client.peers.append(self.connection)
 
 class OutboundBootstrapRegister(Command):
     """Register with the Bootstrap Node."""
