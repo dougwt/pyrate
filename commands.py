@@ -241,13 +241,34 @@ class OutboundBootstrapRegister(Command):
 
 class InboundBootstrapRequestPeerList(Command):
     """Respond with BootstrapResponsePeerList."""
-    # TODO: Implement stub
+    def __init__(self, client, connection):
+        self.client = client
+        self.connection = connection
+
     def run(self):
-        pass
+        msg = 'Received Peer List Request from %s:%s'
+        log(msg % (self.connection.server, self.connection.port))
+
+        # Assemble peer list message
+        peer_list = ''
+        for peer in self.client.peers:
+            # IPAddress1,PortNumber1\nIPAddress2,PortNumber2\n
+            peer_list += '%s,%s\n' % (peer.address, peer.port)
+
+        msg = 'Responding to Peer List Request %s:%s [%s]'
+        log(msg % (self.client.bootstrap.address, self.client.bootstrap.port, peer_list))
+        bootstrap = Socket(self.connection.server, self.connection.port)
+
+        bootstrap.send(peer_list)
+        bootstrap.close()
 
 
 class OutboundBootstrapRequestPeerList(Command):
     """Request an updated Peer List from the Bootstrap Node."""
+    def __init__(self, client, connection):
+        self.client = client
+        self.connection = connection
+
     def run(self):
         msg = 'Requesting Peer List from Bootstrap Node %s:%s'
         log(msg % (self.client.bootstrap.address, self.client.bootstrap.port))
@@ -257,17 +278,16 @@ class OutboundBootstrapRequestPeerList(Command):
 
         # Request Peer List Message
         bootstrap.send('1:3')
-
-        # KLUDGE: Because of the way the Listener hands off a message to its
-        # workers, there's no way to maintain the same connection between
-        # receiving the initial request and the subsequent request.
-
-        # Reestablish connection for next stage
+        unused, temp_port = bootstrap.get_port()
         bootstrap.close()
-        bootstrap.open()
 
+        msg = 'Waiting for response from %s:%s [%s]...'
+        log(msg % (self.server, self.port, temp_port))
+
+        # Establish server socket for response connection
+        bootstrap = ServerSocket(temp_port, self.client.listen_addr)
         peer_list_response = bootstrap.recv()
-        log('Received Peer List Response: %s' % peer_list_response)
+        log('Received Peer List Response:\n%s' % peer_list_response)
 
         peerlist = []
         for item in peer_list_response.split('\n')[0:-1]:
@@ -279,7 +299,7 @@ class OutboundBootstrapRequestPeerList(Command):
             if peer not in self.client.peers:
                 self.client.peers.append(peer)
 
-        # return peer_list_response
+        return peer_list
 
 
 # BootstrapUnregister
