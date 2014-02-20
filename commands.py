@@ -303,11 +303,13 @@ class OutboundBootstrapRequestPeerList(ConnectionCommand):
 # BootstrapUnregister
 
 
-class InboundBootstrapUnregister(Command):
+class InboundBootstrapUnregister(ConnectionCommand):
     """Unregisters the sending peer with the network."""
-    # TODO: Implement stub
     def run(self):
-        pass
+        msg = 'Unregistering client (%s, %s)'
+        log(msg % (self.address, self.port))
+
+        self.client.peers.remove(self.connection)
 
 
 class OutboundBootstrapUnregister(Command):
