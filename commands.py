@@ -105,7 +105,7 @@ class Command():
 
 
 class ConnectionCommand(Command):
-    def__init__(self, client, connection):
+    def __init__(self, client, connection):
         Command.__init__(self, client)
         self.connection = connection
         self.address = self.connection.address
@@ -326,11 +326,13 @@ class OutboundBootstrapUnregister(Command):
 # BootstrapKeepAlive
 
 
-class InboundBootstrapKeepAlive(Command):
+class InboundBootstrapKeepAlive(ConnectionCommand):
     """Refresh the sending peer's keepalive timer."""
-    # TODO: Implement stub
     def run(self):
-        pass
+        for peer in self.client.peers:
+            if peer is self.connection:
+                peer.reset()
+                break
 
 
 class OutboundBootstrapKeepAlive(Command):
