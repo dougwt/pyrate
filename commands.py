@@ -70,9 +70,8 @@ class Socket():
 
 class ServerSocket(Socket):
     """Establishes a temp server socket to accept one incoming connection."""
-    def __init__(self, port, address=''):
-        self.address = address
-        self.port = port
+    def __init__(self):
+        Socket.__init__(self)
 
         debug('Establishing socket connection to %s:%s...' % (address, port))
         try:
@@ -103,6 +102,18 @@ class Command():
 
     def log(self, msg):
         return self.client.log(DEBUG, msg)
+
+
+class ConnectionCommand(Command):
+    def__init__(self, client, connection):
+        self.connection = connection
+        self.address = self.connection.address
+        self.port = self.connection.port
+        Command.__init__(self, client)
+
+    @abc.abstractmethod
+    def run(self):
+        pass
 
 
 class CommandFactory():
@@ -187,39 +198,34 @@ class CommandFactory():
 # Decode
 
 
-class Decode(Command):
+class Decode(ConnectionCommand):
     """Contains a received message that is yet to be decoded."""
     def __init__(self, client, message, connection):
-        self.client = client
         self.message = message
-        self.connection = connection
+        ConnectionCommand.__init__(self, client, connection)
 
     def run(self):
         command = CommandFactory.decode(self.client, self.message,
           self.connection)
 
         msg = 'Decoding \'%s\' (%s:%s) -> %s' % (self.message, \
-          self.connection.address, self.connection.port, command)
+          self.address, self.port, command)
         self.log(msg)
 
         if command:
             msg = 'Queueing (%s:%s) %s'
-            log(msg % (self.connection.address, self.connection.port, command))
+            log(msg % (self.address, self.port, command))
             self.client.add(command)
 
 
 # BootstrapRegister
 
 
-class InboundBootstrapRegister(Command):
+class InboundBootstrapRegister(ConnectionCommand):
     """Registers the sending peer with the network."""
-    def __init__(self, client, connection):
-        self.client = client
-        self.connection = connection
-
     def run(self):
         msg = 'Registering new client (%s, %s)'
-        log(msg % (self.connection.address, self.connection.port))
+        log(msg % (self.address, self.port))
 
         self.client.peers.append(self.connection)
 
@@ -239,15 +245,11 @@ class OutboundBootstrapRegister(Command):
 # BootstrapRequestPeerList
 
 
-class InboundBootstrapRequestPeerList(Command):
+class InboundBootstrapRequestPeerList(ConnectionCommand):
     """Respond with BootstrapResponsePeerList."""
-    def __init__(self, client, connection):
-        self.client = client
-        self.connection = connection
-
     def run(self):
         msg = 'Received Peer List Request from %s:%s'
-        log(msg % (self.connection.server, self.connection.port))
+        log(msg % (self.address, self.port))
 
         # Assemble peer list message
         peer_list = ''
@@ -257,18 +259,14 @@ class InboundBootstrapRequestPeerList(Command):
 
         msg = 'Responding to Peer List Request %s:%s [%s]'
         log(msg % (self.client.bootstrap.address, self.client.bootstrap.port, peer_list))
-        bootstrap = Socket(self.connection.server, self.connection.port)
+        bootstrap = Socket(self.address, self.port)
 
         bootstrap.send(peer_list)
         bootstrap.close()
 
 
-class OutboundBootstrapRequestPeerList(Command):
+class OutboundBootstrapRequestPeerList(ConnectionCommand):
     """Request an updated Peer List from the Bootstrap Node."""
-    def __init__(self, client, connection):
-        self.client = client
-        self.connection = connection
-
     def run(self):
         msg = 'Requesting Peer List from Bootstrap Node %s:%s'
         log(msg % (self.client.bootstrap.address, self.client.bootstrap.port))
@@ -282,7 +280,7 @@ class OutboundBootstrapRequestPeerList(Command):
         bootstrap.close()
 
         msg = 'Waiting for response from %s:%s [%s]...'
-        log(msg % (self.server, self.port, temp_port))
+        log(msg % (self.address, self.port, temp_port))
 
         # Establish server socket for response connection
         bootstrap = ServerSocket(temp_port, self.client.listen_addr)
@@ -351,20 +349,18 @@ class OutboundBootstrapKeepAlive(Command):
 # DownloadRequest
 
 
-class InboundDownloadRequest(Command):
+class InboundDownloadRequest(ConnectionCommand):
     """Respond with the requested file."""
-    def __init__(self, client, server, port, filename):
-        self.client = client
-        self.server = server
-        self.port = port
+    def __init__(self, client, connection, filename):
         self.filename = filename
+        ConnectionCommand.__init__(client, connection)
 
     def run(self):
-        log('Received Download Request from %s:%s' % (self.server, self.port))
+        log('Received Download Request from %s:%s' % (self.address, self.port))
 
         msg = 'Preparing to send \'%s\' to %s:%s...'
-        log(msg % (self. filename, self.server, self.port))
-        bootstrap = Socket(self.server, self.port)
+        log(msg % (self. filename, self.address, self.port))
+        bootstrap = Socket(self.address, self.port)
 
         # send actual file contents
         with open(self.client.local_directory + '/' + self.filename, 'r') as f:
@@ -372,22 +368,20 @@ class InboundDownloadRequest(Command):
             bootstrap.send(f.read())
 
         msg = 'Finished sending \'%s\' to %s:%s...'
-        log(msg % (self. filename, self.server, self.port))
+        log(msg % (self. filename, self.address, self.port))
 
 
-class OutboundDownloadRequest(Command):
+class OutboundDownloadRequest(ConnectionCommand):
     """Request a file from a peer."""
-    def __init__(self, client, server, port, filename):
-        self.client = client
-        self.server = server
-        self.port = port
+    def __init__(self, connection, filename):
         self.filename = filename
+        ConnectionCommand.__init__(self, connection)
 
     def run(self):
         msg = 'Sending Download Request for \'%s\' to %s:%s'
-        log (msg % (self.filename, self.server, self.port))
+        log (msg % (self.filename, self.address, self.port))
 
-        bootstrap = Socket(self.server, self.port)
+        bootstrap = Socket(self.address, self.port)
 
         # Send Download Message
         bootstrap.send('4:%s' % self.filename)
@@ -395,9 +389,9 @@ class OutboundDownloadRequest(Command):
         bootstrap.close()
 
         msg = 'Waiting for response from %s:%s [%s]...'
-        log(msg % (self.server, self.port, temp_port))
+        log(msg % (self.address, self.port, temp_port))
 
-        # Establish server socket for response connection
+        # Establish address socket for response connection
         bootstrap = ServerSocket(temp_port, self.client.listen_addr)
         data = bootstrap.recv()
 
@@ -412,15 +406,10 @@ class OutboundDownloadRequest(Command):
 # DownloadRequest
 
 
-class InboundListRequest(Command):
+class InboundListRequest(ConnectionCommand):
     """Respond with our Peer List"""
-    def __init__(self, client, server, port):
-        self.client = client
-        self.server = server
-        self.port = port
-
     def run(self):
-        log('Received File List Request from %s:%s' % (self.server, self.port))
+        log('Received File List Request from %s:%s' % (self.address, self.port))
 
         # format file list for transmission
         if len(self.filelist) > 0:
@@ -428,9 +417,9 @@ class InboundListRequest(Command):
         else:
             msg = ''
 
-        log('Sending File List Response to %s:%s...' % (self.server, self.port))
+        log('Sending File List Response to %s:%s...' % (self.address, self.port))
 
-        bootstrap = Socket(self.server, self.port)
+        bootstrap = Socket(self.address, self.port)
 
         # List Files Response Message
         bootstrap.send(msg)
@@ -445,17 +434,12 @@ class InboundListRequest(Command):
         bootstrap.send(msg)
 
 
-class OutboundListRequest(Command):
+class OutboundListRequest(ConnectionCommand):
     """Request a File List from a peer."""
-    def __init__(self, client, server, port):
-        self.client = client
-        self.server = server
-        self.port = port
-
     def run(self):
-        log('Sending File List Request to %s:%s' % (self.server, self.port))
+        log('Sending File List Request to %s:%s' % (self.address, self.port))
 
-        bootstrap = Socket(self.server, self.port)
+        bootstrap = Socket(self.address, self.port)
 
         # List Files Message
         bootstrap.send('5:')
@@ -464,28 +448,26 @@ class OutboundListRequest(Command):
         filelist = bootstrap.recv()
 
         msg = 'Received File List response (%s:%s):\n %s'
-        log(msg % (self.server, self.port, filelist))
+        log(msg % (self.address, self.port, filelist))
 
 
 # SearchRequest
 
 
-class InboundSearchRequest(Command):
+class InboundSearchRequest(ConnectionCommand):
     """Check to see if we have the requested file."""
-    def __init__(self, client, server, port, requesting_ip, requesting_port,
+    def __init__(self, client, connection, requesting_ip, requesting_port,
       ident, filename, ttl):
-        self.client = client
-        self.server = server
-        self.port = port
         self.requesting_ip = requesting_ip
         self.requesting_port = requesting_port
         self.id = ident
         self.filename = filename
         self.ttl = ttl
+        ConnectionCommand.__init__(self, client, connection)
 
     def run(self):
         msg = 'Received Search Request for \'%s\' from %s:%s : %s'
-        log(msg % (self.filename, self.server, self.port, self.filelist))
+        log(msg % (self.filename, self.address, self.port, self.filelist))
 
         # if we've already seen this request, do nothing
         if self.id in self.client.seen:
@@ -497,7 +479,7 @@ class InboundSearchRequest(Command):
         # if we have this file, let the original client know
         if self.filename in self.client.filelist:
             # add Search Response to outbound queue
-            command = OutboundSearchResponse(self.client, self.server,
+            command = OutboundSearchResponse(self.client, self.address,
               self.port, self.id, self.requesting_ip, self.requesting_port,
               self.filename)
             self.client.out_queue.put(command)
@@ -505,30 +487,28 @@ class InboundSearchRequest(Command):
         # if we don't have the file and TTL > 0, forward the Search Request
         elif self.ttl > 0:
             # add Search Request to outbound queue
-            command = OutboundSearchRequest(self.client, self.server, self.port,
+            command = OutboundSearchRequest(self.client, self.address, self.port,
               self.id, self.filename, self.requesting_ip, self.requesting_port,
               self.ttl - 1)
             self.client.out_queue.put(command)
 
 
-class OutboundSearchRequest(Command):
+class OutboundSearchRequest(ConnectionCommand):
     """Notify peers of your request."""
-    def __init__(self, client, server, port, id, filename, requesting_ip,
+    def __init__(self, client, connection, id, filename, requesting_ip,
       requesting_port, ttl):
-        self.client = client
-        self.server = server
-        self.port = port
         self.id = id
         self.filename = filename
         self.requesting_ip = requesting_ip
         self.requesting_port = requesting_port
         self.ttl = ttl
+        ConnectionCommand.__init__(self, client, connection)
 
     def run(self):
         msg = 'Sending Search Request for \'%s\' to %s:%s'
-        log(msg % (self.filename, self.server, self.port))
+        log(msg % (self.filename, self.address, self.port))
 
-        bootstrap = Socket(self.server, self.port)
+        bootstrap = Socket(self.address, self.port)
 
         # This line causes an error for some reason, so use alt string below
         # message = '6:%s:%s:%s' % (self.id, self.filename, self.requesting_ip,
@@ -544,41 +524,37 @@ class OutboundSearchRequest(Command):
 # SearchResponse
 
 
-class InboundSearchResponse(Command):
+class InboundSearchResponse(ConnectionCommand):
     """Process search response from peers."""
-    def __init__(self, client, server, port, filename, responding_ip,
+    def __init__(self, client, connection, filename, responding_ip,
       responding_port):
-        self.client = client
-        self.server = server
-        self.port = port
         self.filename = filename
         self.responding_ip
         self.responding_port
+        ConnectionCommand.__init__(self, client, connection)
 
     def run(self):
         msg = 'Received File List Response from %s:%s : %s'
-        log(msg % (self.server, self.port, self.filelist))
+        log(msg % (self.address, self.port, self.filelist))
 
         # TODO: Display Search Results
 
 
-class OutboundSearchResponse(Command):
+class OutboundSearchResponse(ConnectionCommand):
     """Respond to a peer's search request."""
-    def __init__(self, client, server, port, id, responding_ip, responding_port,
+    def __init__(self, client, connection, id, responding_ip, responding_port,
       filename):
-        self.client = client
-        self.server = server
-        self.port = port
         self.id = id
         self.responding_ip = responding_ip
         self.responding_port = responding_port
         self.filename = filename
+        ConnectionCommand.__init__(self, client, connection)
 
     def run(self):
         msg = 'Sending Search Response for \'%s\' to %s:%s'
-        log(msg % (self.filename, self.server, self.port))
+        log(msg % (self.filename, self.address, self.port))
 
-        bootstrap = Socket(self.server, self.port)
+        bootstrap = Socket(self.address, self.port)
 
         # Search Response Message
         bootstrap.send('7:%s:%s:%s' % (self.id, self.responding_port,
