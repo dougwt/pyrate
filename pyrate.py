@@ -17,6 +17,17 @@ def enum(*sequential, **named):
 Message = enum('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
 Connection = collections.namedtuple('Connection', ['address', 'port'])
 
+class Connection(collections.namedtuple):
+    def __init__(self, address, port, timeout=10*60):
+        collections.namedtuple.__init__('Connection', ['address', 'port'])
+        self.timer = Timer(timeout)
+
+    def check(self):
+        return self.timer.expired()
+
+    def reset(self):
+        return self.timer.set()
+
 
 class Client():
     def __init__(self, bootstrap_addr, bootstrap_port, listen_addr, listen_port,
@@ -220,16 +231,23 @@ class Timer():
     """A simple timer that expires at a set interval given in seconds."""
     def __init__(self, seconds):
         self.seconds = seconds
-        self.start_time = self.get_current_time()
+        self.set()
 
     def expired(self):
         """Returns True if enough time has elapsed since start_time."""
         current_time = self.get_current_time()
         if (current_time > (self.start_time + self.seconds)):
-            self.start_time = current_time  # prepare for next interval
+            self.set(current_time)  # prepare for next interval
             return True
         else:
             return False
+
+    def set(self, time=None):
+        """Sets the start time."""
+        if time:
+            self.start_time = time
+        else
+            self.start_time = self.get_current_time()
 
     def get_current_time(self):
         """Returns the current time in seconds."""
