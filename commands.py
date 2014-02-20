@@ -9,7 +9,12 @@ class Socket():
     def __init__(self, address, port):
         self.address = address
         self.port = port
+        self.opened = False
 
+        self.open()
+
+    def open(self):
+        """Open the connection."""
         debug('Establishing socket connection to %s:%s...' % (address, port))
         try:
             self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -24,6 +29,8 @@ class Socket():
             print 'Hostname could not be resolved. Exiting.'
             sys.exit()
 
+        self.opened = True
+
         # now connect to the Bootstrap node on the given port
         self.s.connect((remote_ip, port))
 
@@ -33,6 +40,7 @@ class Socket():
 
     def close(self):
         debug('Disconnecting socket to %s:%s' % (self.address, self.port))
+        self.opened = False
         self.s.close()
 
     def send(self, message):
