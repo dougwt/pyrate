@@ -153,13 +153,13 @@ class CommandFactory():
             code, filename = message.split(':')
             msg = 'Detected incoming DownloadRequest message from %s:%s %s'
             log(msg % (address, port, filename))
-            return InboundDownloadRequest(client, address, port, filename)
+            return InboundDownloadRequest(client, connection, filename)
 
         # List Files Msg Format -> 5:
         elif prefix == '5:':
             msg = 'Detected incoming ListFilesRequest message from %s:%s'
             log(msg % (address, port))
-            return InboundListRequest(client, address, port)
+            return InboundListRequest(client, connection)
 
         # Search Msg Format -> 6:ID:File String:RequestingIP:RequestingPort:TTL
         elif prefix == '6:':
@@ -168,7 +168,7 @@ class CommandFactory():
 
             msg = 'Detected incoming SearchRequest message from %s:%s'
             log(msg % (address, port))
-            return InboundSearchRequest(client, address, port, requesting_ip,
+            return InboundSearchRequest(client, connection, requesting_ip,
               requesting_port, filename, ttl)
 
         # Search Response Msg Format -> 7:ID:RespondingIP:RespondingPort:Filename
@@ -178,7 +178,7 @@ class CommandFactory():
 
             msg = 'Detected incoming SearchResponse message from %s:%s %s'
             log(msg % (address, port, filename))
-            return InboundSearchResponse(client, address, port, filename,
+            return InboundSearchResponse(client, connection, filename,
               respdonding_ip, responding_port)
 
         # TODO: else case should result in the message being discarded.
@@ -190,7 +190,7 @@ class CommandFactory():
             filelist = filename.split('\n')
             msg = 'Detected incoming ListResponse message from %s:%s %s'
             log(msg % (address, port, filelist))
-            return InboundListResponse(client, address, port, filelist)
+            return InboundListResponse(client, connection, filelist)
 
         return None
 
