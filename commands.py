@@ -258,6 +258,14 @@ class OutboundBootstrapRequestPeerList(Command):
         # Request Peer List Message
         bootstrap.send('1:3')
 
+        # KLUDGE: Because of the way the Listener hands off a message to its
+        # workers, there's no way to maintain the same connection between
+        # receiving the initial request and the subsequent request.
+
+        # Reestablish connection for next stage
+        bootstrap.close()
+        bootstrap.open()
+
         peer_list_response = bootstrap.recv()
         log('Received Peer List Response: %s' % peer_list_response)
 
